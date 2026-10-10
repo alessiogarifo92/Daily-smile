@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { FLOWER_COLORS, FLOWER_TYPES } from '../shared/flowers';
+import { FLOWER_COLORS, FLOWER_TYPES, NATURAL_COLORS } from '../shared/flowers';
 
 // Renders single-colour bouquets and measures what the petals really look like on screen.
 test.use({ timezoneId: 'Europe/Rome', locale: 'it-IT' });
@@ -55,10 +55,21 @@ async function petalColour(page: Page, flower: string, color: string, skipHeart 
   }, skipHeart);
 }
 
-const RUNS = [['rosa', '3d', '3D roses'], ['rosa', 'realistico', '2D roses'], ['tulipano', 'realistico', '2D tulips']] as const;
+const RUNS = [
+  ['rosa', '3d', '3D roses'],
+  ['rosa', 'realistico', '2D roses'],
+  ['tulipano', 'realistico', '2D tulips'],
+  ['margherita', 'realistico', '2D daisies'],
+  ['girasole', 'realistico', '2D sunflowers'],
+  ['peonia', 'realistico', '2D peonies'],
+  ['ranuncolo', 'realistico', '2D ranunculus'],
+  ['gerbera', 'realistico', '2D gerberas'],
+] as const;
 for (const [flower, style, kind] of RUNS) for (const c of FLOWER_COLORS) {
   test(`${kind} in ${c.label} look ${c.label}`, async ({ page }) => {
-    const got = await petalColour(page, flower, c.id, false, style);
+    // Skip the daisy's golden disc, except on yellow daisies, whose petals would be skipped with it,
+    // and the sunflower's and gerbera's dark ones.
+    const got = await petalColour(page, flower, c.id, (flower === 'margherita' && c.id !== 'sole') || flower === 'girasole' || flower === 'gerbera', style);
     const target = hexToRgb(c.hex);
     const dE = deltaE(got, target);
     console.log(`${kind} ${c.id.padEnd(8)} target ${c.hex} got rgb(${got.join(',')}) ΔE ${dE.toFixed(1)}`);
@@ -68,6 +79,18 @@ for (const [flower, style, kind] of RUNS) for (const c of FLOWER_COLORS) {
     expect(dE, `${c.id}: rendered rgb(${got.join(',')}) vs ${c.hex}`).toBeLessThan(25);
   });
 }
+
+// Lavender ignores the palette and mixes its three natural purples: the median of the bouquet
+// is measured against the middle shade, and must stay nearer to it than to any palette colour.
+test('2D lavender looks lavender', async ({ page }) => {
+  const shades = NATURAL_COLORS.lavanda ?? [];
+  const got = await petalColour(page, 'lavanda', 'rosso', false, 'realistico');
+  const dE = deltaE(got, hexToRgb('#8E7CC3'));
+  console.log(`2D lavender got rgb(${got.join(',')}) ΔE ${dE.toFixed(1)} (${shades.map((h) => `${h} ${deltaE(got, hexToRgb(h)).toFixed(1)}`).join(' · ')})`);
+  const nearestPalette = Math.min(...FLOWER_COLORS.map((c) => deltaE(got, hexToRgb(c.hex))));
+  expect(dE, `rendered rgb(${got.join(',')}) is nearer a palette colour`).toBeLessThan(nearestPalette);
+  expect(dE, `rendered rgb(${got.join(',')}) vs #8E7CC3`).toBeLessThan(25);
+});
 
 for (const f of FLOWER_TYPES.filter((x) => x.id !== 'lavanda')) {
   test(`${f.label} in red look red`, async ({ page }) => {

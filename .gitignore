@@ -6,3 +6,4 @@ playwright-report/
 .wrangler/
 .dev.vars
 .claude/worktrees/
+__pycache__/
