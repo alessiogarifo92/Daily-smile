@@ -137,11 +137,12 @@ def aim(cam, elev_deg, target, dist=5.6):
     cam.rotation_euler = (t - cam.location).to_track_quat('-Z', 'Y').to_euler()
 
 
-def run(flower, build_head, build_greens, target=(0, 0, 0.3), exposure=-0.5):
+def run(flower, build_head, build_greens, target=(0, 0, 0.3), exposure=-0.5, colors=COLORS):
     """Command line: OUT_DIR [colour ...] [--angles a,b] [--size N] [--samples N].
 
     exposure: stops; tuned per flower so the median petal colour matches the palette
     (e2e/colors.spec.ts measures it).
+    colors: name -> hex; the palette by default, a flower's own shades when it has natural colours.
     """
     args = sys.argv[1:]
     out = args[0]
@@ -155,13 +156,13 @@ def run(flower, build_head, build_greens, target=(0, 0, 0.3), exposure=-0.5):
         else:
             names.append(args[i])
             i += 1
-    names = names or list(COLORS)
+    names = names or list(colors)
     bpy.ops.wm.read_factory_settings(use_empty=True)
     cam = setup_scene(int(opts['--size']), int(opts['--samples']))
     bpy.context.scene.view_settings.exposure = exposure
     build_greens()
     for name in names:
-        head = build_head(COLORS[name])
+        head = build_head(colors[name])
         for angle in opts['--angles'].split(','):
             aim(cam, ANGLES[angle], target)
             bpy.context.scene.render.filepath = f'{out}/{flower}-{name}-{angle}.webp'

@@ -56,7 +56,7 @@ export function colorHex(id: FlowerColor): string {
 }
 
 /** Flowers whose real-world colour is fixed: their own palette is used, not the user's. */
-const NATURAL_COLORS: Partial<Record<FlowerType, string[]>> = {
+export const NATURAL_COLORS: Partial<Record<FlowerType, string[]>> = {
   lavanda: ['#8E7CC3', '#9D86D1', '#7E6BB5'],
 };
 
