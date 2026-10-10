@@ -1,4 +1,4 @@
-import { FLOWER_COLORS, type Bouquet, type FlowerColor, type FlowerType, type Stem } from '../../shared/flowers';
+import { FLOWER_COLORS, WRAPS, type Bouquet, type FlowerColor, type FlowerType, type Stem } from '../../shared/flowers';
 import { createRng } from '../../shared/random';
 import { normalize, placeHead, sub, type Vec3 } from './composition';
 
@@ -40,6 +40,28 @@ export function canDrawSprites(bouquet: Pick<Bouquet, 'stems'>): boolean {
 
 export function spriteUrl(type: FlowerType, color: SpriteColor, angle: SpriteAngle): string {
   return `/flowers/${type}-${color}-${angle}.webp`;
+}
+
+/** Rendered leaf shapes (scripts/blender/leaves.py): leaf-1 .. leaf-N. */
+export const LEAF_VARIANTS = 4;
+
+export function leafUrl(variant: number): string {
+  return `/bouquet/leaf-${variant}.webp`;
+}
+
+/**
+ * Paper cone layers (scripts/blender/wrap.py), rendered with this view's camera: the inside
+ * goes behind the stems, the front wall in front of them. Null for a paper colour never rendered.
+ */
+export function wrapUrl(hex: string, layer: 'back' | 'front'): string | null {
+  const known = WRAPS.find((w) => w.toUpperCase() === hex.toUpperCase());
+  return known ? `/bouquet/wrap-${known.slice(1).toLowerCase()}-${layer}.webp` : null;
+}
+
+/** Ribbon and bow in a palette colour; null for any other colour. */
+export function ribbonUrl(hex: string): string | null {
+  const color = HEX_TO_COLOR.get(hex.toUpperCase());
+  return color ? `/bouquet/ribbon-${color}.webp` : null;
 }
 
 /**
@@ -101,8 +123,8 @@ export interface HeadSprite {
 
 export interface StemStroke {
   points: { x: number; y: number }[];
-  /** Leaf on the stem: position, angle and length, or null. */
-  leaf: { x: number; y: number; angle: number; length: number } | null;
+  /** Leaf on the stem: position, angle, length and rendered shape (1..LEAF_VARIANTS), or null. */
+  leaf: { x: number; y: number; angle: number; length: number; variant: number } | null;
 }
 
 export interface CollarLeaf {
@@ -113,6 +135,8 @@ export interface CollarLeaf {
   depth: number;
   /** In front of the paper (true) or behind it. */
   front: boolean;
+  /** Rendered leaf shape, 1..LEAF_VARIANTS. */
+  variant: number;
 }
 
 export interface Layout2D {
@@ -121,8 +145,6 @@ export interface Layout2D {
   collar: CollarLeaf[];
   /** Paper cone: rim ellipse and the bottom point. */
   wrap: { rimX: number; rimY: number; rimRx: number; rimRy: number; tipX: number; tipY: number; tipR: number };
-  /** Ribbon band height on the cone. */
-  ribbon: { x: number; y: number; halfWidth: number };
 }
 
 /** Head size relative to the 3D view: the sprite square is larger than the flower it holds. */
@@ -163,7 +185,15 @@ export function layoutBouquet(bouquet: Pick<Bouquet, 'stems'>, width: number, he
     const leafAt = rng() < 0.6 ? pts[2] : undefined;
     stems.push({
       points: pts.map(({ x, y }) => ({ x, y })),
-      leaf: leafAt ? { x: leafAt.x, y: leafAt.y, angle: (head.x < width / 2 ? -1 : 1) * (0.7 + rng() * 0.5), length: cam.scaleAt(leafAt.depth) * (0.16 + rng() * 0.06) } : null,
+      leaf: leafAt
+        ? {
+            x: leafAt.x,
+            y: leafAt.y,
+            angle: (head.x < width / 2 ? -1 : 1) * (0.7 + rng() * 0.5),
+            length: cam.scaleAt(leafAt.depth) * (0.16 + rng() * 0.06),
+            variant: 1 + (s.seed % LEAF_VARIANTS),
+          }
+        : null,
     });
   });
   heads.sort((a, b) => b.depth - a.depth);
@@ -183,6 +213,8 @@ export function layoutBouquet(bouquet: Pick<Bouquet, 'stems'>, width: number, he
       length: cam.scaleAt(at.depth) * (0.3 + leafRng() * 0.1),
       depth: at.depth,
       front: Math.cos(a) > 0.15,
+      // Neighbouring leaves get different shapes; no extra draws, so the layout stays the same.
+      variant: 1 + ((i * 3 + (bouquet.stems[0]?.seed ?? 0)) % LEAF_VARIANTS),
     });
   }
   collar.sort((a, b) => b.depth - a.depth);
@@ -193,14 +225,11 @@ export function layoutBouquet(bouquet: Pick<Bouquet, 'stems'>, width: number, he
   const rimF = cam.project([0, 0.25, 0.78]);
   const tip = cam.project([0, -1.15, 0]);
   const tipR = cam.project([0.1, -1.15, 0]);
-  const tie = cam.project([0, -0.42, 0.33]);
-  const tieR = cam.project([0.34, -0.42, 0]);
   return {
     heads,
     stems,
     collar,
     wrap: { rimX: rimC.x, rimY: rimC.y, rimRx: rimR.x - rimC.x, rimRy: Math.max(2, rimF.y - rimC.y), tipX: tip.x, tipY: tip.y, tipR: tipR.x - tip.x },
-    ribbon: { x: tie.x, y: tie.y, halfWidth: tieR.x - tie.x },
   };
 }
 

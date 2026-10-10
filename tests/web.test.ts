@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { DOME_CENTER, DOME_RADIUS, MAX_POLAR, easeOutBack, length, normalize, placeHead } from '../web/src/composition';
 import { STORAGE_KEY, defaultPreferences, loadPreferences, sanitizePreferences, savePreferences } from '../web/src/prefs';
-import { shade } from '../web/src/bouquet2d';
-import { SPRITE_KINDS, angleFor, canDrawSprites, createProjector, layoutBouquet, spriteColor, spriteColors, spriteUrl } from '../web/src/sprites';
-import { colorHex, composeBouquet, FLOWER_COLORS, NATURAL_COLORS } from '../shared/flowers';
+import { LEAF_VARIANTS, SPRITE_KINDS, angleFor, canDrawSprites, createProjector, layoutBouquet, leafUrl, ribbonUrl, spriteColor, spriteColors, spriteUrl, wrapUrl } from '../web/src/sprites';
+import { colorHex, composeBouquet, FLOWER_COLORS, NATURAL_COLORS, WRAPS } from '../shared/flowers';
 import { existsSync } from 'node:fs';
 import { cleanDigits, hourComplete, partsToTime, shiftTime, timeToParts } from '../web/src/timeInput';
 
@@ -249,12 +248,29 @@ describe('2D sprite bouquet', () => {
     expect(big.size).toBeCloseTo(small.size * 2, 6);
     expect(big.x).toBeCloseTo(small.x * 2, 6);
   });
-  it('shade lightens and darkens a colour and leaves bad input alone', () => {
-    expect(shade('#808080', 0)).toBe('#808080');
-    expect(shade('#808080', 1)).toBe('#ffffff');
-    expect(shade('#808080', -1)).toBe('#000000');
-    expect(shade('#ff0000', -0.5)).toBe('#800000');
-    expect(shade('red', 0.2)).toBe('red');
-    expect(shade('#12345', 0.2)).toBe('#12345');
+  it('every paper, ribbon and leaf sprite exists, and other colours have none', () => {
+    for (const w of WRAPS) {
+      for (const layer of ['back', 'front'] as const) {
+        const url = wrapUrl(w.toLowerCase(), layer);
+        expect(url).toBe(`/bouquet/wrap-${w.slice(1).toLowerCase()}-${layer}.webp`);
+        expect(existsSync(`web/public${url}`), url!).toBe(true);
+      }
+    }
+    for (const c of FLOWER_COLORS) {
+      const url = ribbonUrl(c.hex);
+      expect(url).toBe(`/bouquet/ribbon-${c.id}.webp`);
+      expect(existsSync(`web/public${url}`), url!).toBe(true);
+    }
+    for (let v = 1; v <= LEAF_VARIANTS; v++) expect(existsSync(`web/public${leafUrl(v)}`), leafUrl(v)).toBe(true);
+    expect(wrapUrl('#FFFFFF', 'front')).toBeNull();
+    expect(ribbonUrl('#8E7CC3')).toBeNull(); // lavender's natural purple is not a palette ribbon
+  });
+  it('gives every leaf a rendered shape, the same one for the same bouquet', () => {
+    const b = composeBouquet({ flowers: ['rosa', 'tulipano', 'girasole'], colors: ['rosso', 'panna'] }, '2026-10-14');
+    const l = layoutBouquet(b, 300, 400);
+    const variants = [...l.collar.map((c) => c.variant), ...l.stems.flatMap((s) => (s.leaf ? [s.leaf.variant] : []))];
+    expect(variants.every((v) => Number.isInteger(v) && v >= 1 && v <= LEAF_VARIANTS)).toBe(true);
+    expect(new Set(l.collar.map((c) => c.variant)).size).toBeGreaterThan(1);
+    expect(layoutBouquet(b, 300, 400)).toEqual(l);
   });
 });

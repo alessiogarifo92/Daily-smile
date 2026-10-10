@@ -1,6 +1,6 @@
 import type { Bouquet } from '../../shared/flowers';
 import { easeOutBack } from './composition';
-import { layoutBouquet, spriteUrl, type Layout2D } from './sprites';
+import { LEAF_VARIANTS, layoutBouquet, leafUrl, ribbonUrl, spriteUrl, wrapUrl, type Layout2D } from './sprites';
 import type { BouquetView } from './view';
 
 const images = new Map<string, Promise<HTMLImageElement>>();
@@ -42,8 +42,13 @@ export async function createBouquet2DView(container: HTMLElement, bouquet: Bouqu
   let active = true;
   let raf = 0;
 
+  // Heads, the leaf shapes, and the paper and ribbon of the day: all rendered sprites.
   const loadSprites = async (b: Bouquet) => {
-    const urls = [...new Set(layoutBouquet(b, 100, 100).heads.map((h) => spriteUrl(h.type, h.color, h.angle)))];
+    const paper = [wrapUrl(b.wrap, 'back'), wrapUrl(b.wrap, 'front'), ribbonUrl(b.ribbon)];
+    if (paper.some((u) => u === null)) throw new Error('no paper sprites');
+    const heads = layoutBouquet(b, 100, 100).heads.map((h) => spriteUrl(h.type, h.color, h.angle));
+    const leaves = Array.from({ length: LEAF_VARIANTS }, (_, i) => leafUrl(i + 1));
+    const urls = [...new Set([...heads, ...leaves, ...(paper as string[])])];
     const loaded = await Promise.all(urls.map(loadImage));
     return new Map(urls.map((u, i) => [u, loaded[i] as HTMLImageElement]));
   };
@@ -67,17 +72,30 @@ export async function createBouquet2DView(container: HTMLElement, bouquet: Bouqu
   const observer = new ResizeObserver(resize);
   observer.observe(container);
 
-  const css = (name: string, fallback: string) => getComputedStyle(container).getPropertyValue(name).trim() || fallback;
-
   function draw(now: number): void {
     if (!layout || !ctx) return;
     const elapsed = (now - startedAt) / 1000;
     const t = reducedMotion ? 1 : elapsed / 1.3;
     const rise = (1 - Math.min(1, Math.max(0, t))) * height * 0.12;
     const grow = Math.max(0.001, easeOutBack(t));
-    const stem = css('--stem', '#3e9a6e');
-    const leaf = css('--leaf', '#5fb38a');
+    // Stems match the green of the rendered leaves (scripts/blender/leaves.py), not the UI's --stem.
+    const stem = '#4A8650';
     const { wrap } = layout;
+    const leaf = (x: number, y: number, angle: number, length: number, variant: number) => {
+      const img = sprites.get(leafUrl(variant));
+      if (!img) return;
+      // The sprite frames the leaf from 1% below its base to 1% above its tip, 1.02 lengths wide.
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.drawImage(img, -0.51 * length, -1.01 * length, 1.02 * length, 1.02 * length);
+      ctx.restore();
+    };
+    // Paper layers were rendered with this view's camera: centred, as tall as the canvas.
+    const paper = (url: string | null) => {
+      const img = url ? sprites.get(url) : undefined;
+      if (img) ctx.drawImage(img, width / 2 - height / 2, 0, height, height);
+    };
 
     ctx.clearRect(0, 0, width, height);
     ctx.save();
@@ -86,12 +104,9 @@ export async function createBouquet2DView(container: HTMLElement, bouquet: Bouqu
     ctx.scale(grow, grow);
     ctx.translate(-wrap.tipX, -wrap.tipY);
 
-    for (const l of layout.collar) if (!l.front) drawLeaf(ctx, l.x, l.y, l.angle, l.length, leaf, stem);
+    for (const l of layout.collar) if (!l.front) leaf(l.x, l.y, l.angle, l.length, l.variant);
     // Inside of the cone, behind the stems.
-    ctx.fillStyle = shade(current.wrap, -0.18);
-    ctx.beginPath();
-    ctx.ellipse(wrap.rimX, wrap.rimY, wrap.rimRx, wrap.rimRy, 0, Math.PI, Math.PI * 2);
-    ctx.fill();
+    paper(wrapUrl(current.wrap, 'back'));
 
     ctx.lineCap = 'round';
     ctx.strokeStyle = stem;
@@ -103,7 +118,7 @@ export async function createBouquet2DView(container: HTMLElement, bouquet: Bouqu
       ctx.moveTo(a.x, a.y);
       ctx.bezierCurveTo(b.x, b.y, c.x, c.y, d.x, d.y);
       ctx.stroke();
-      if (s.leaf) drawLeaf(ctx, s.leaf.x, s.leaf.y, s.leaf.angle, s.leaf.length, leaf, stem);
+      if (s.leaf) leaf(s.leaf.x, s.leaf.y, s.leaf.angle, s.leaf.length, s.leaf.variant);
     }
 
     for (const h of layout.heads) {
@@ -120,8 +135,9 @@ export async function createBouquet2DView(container: HTMLElement, bouquet: Bouqu
       ctx.restore();
     }
 
-    for (const l of layout.collar) if (l.front) drawLeaf(ctx, l.x, l.y, l.angle, l.length, leaf, stem);
-    drawWrap(ctx, layout, current.wrap, current.ribbon);
+    for (const l of layout.collar) if (l.front) leaf(l.x, l.y, l.angle, l.length, l.variant);
+    paper(wrapUrl(current.wrap, 'front'));
+    paper(ribbonUrl(current.ribbon));
     ctx.restore();
   }
 
@@ -169,108 +185,4 @@ export async function createBouquet2DView(container: HTMLElement, bouquet: Bouqu
       canvas.remove();
     },
   };
-}
-
-function drawLeaf(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, length: number, light: string, dark: string): void {
-  const w = length * 0.32;
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(angle);
-  const g = ctx.createLinearGradient(-w, 0, w, 0);
-  g.addColorStop(0, dark);
-  g.addColorStop(0.55, light);
-  g.addColorStop(1, dark);
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.bezierCurveTo(w, -length * 0.25, w * 0.8, -length * 0.75, 0, -length);
-  ctx.bezierCurveTo(-w * 0.8, -length * 0.75, -w, -length * 0.25, 0, 0);
-  ctx.fill();
-  ctx.strokeStyle = 'rgb(255 255 255 / 0.25)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(0, -length * 0.05);
-  ctx.quadraticCurveTo(w * 0.1, -length * 0.5, 0, -length * 0.92);
-  ctx.stroke();
-  ctx.restore();
-}
-
-/** Pleated paper cone in front of the stems, with the ribbon bow at the tie point. */
-function drawWrap(ctx: CanvasRenderingContext2D, layout: Layout2D, paper: string, ribbon: string): void {
-  const { wrap, ribbon: tie } = layout;
-  const left = wrap.rimX - wrap.rimRx;
-  const right = wrap.rimX + wrap.rimRx;
-  const g = ctx.createLinearGradient(left, 0, right, 0);
-  g.addColorStop(0, shade(paper, -0.14));
-  g.addColorStop(0.45, shade(paper, 0.06));
-  g.addColorStop(1, shade(paper, -0.2));
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.moveTo(left, wrap.rimY);
-  // Front half of the rim, gently scalloped like folded paper.
-  const folds = 7;
-  for (let i = 1; i <= folds; i++) {
-    const a0 = Math.PI - ((i - 0.5) / folds) * Math.PI;
-    const a1 = Math.PI - (i / folds) * Math.PI;
-    ctx.quadraticCurveTo(
-      wrap.rimX + Math.cos(a0) * wrap.rimRx,
-      wrap.rimY + Math.sin(a0) * wrap.rimRy * 1.6 + wrap.rimRy * 0.6,
-      wrap.rimX + Math.cos(a1) * wrap.rimRx,
-      wrap.rimY + Math.sin(a1) * wrap.rimRy,
-    );
-  }
-  ctx.lineTo(wrap.tipX + wrap.tipR, wrap.tipY);
-  ctx.lineTo(wrap.tipX - wrap.tipR, wrap.tipY);
-  ctx.closePath();
-  ctx.fill();
-
-  // Pleat creases.
-  ctx.strokeStyle = shade(paper, -0.12);
-  ctx.lineWidth = 1;
-  for (const f of [-0.55, -0.2, 0.2, 0.55]) {
-    ctx.beginPath();
-    ctx.moveTo(wrap.rimX + f * wrap.rimRx, wrap.rimY + wrap.rimRy * 1.2);
-    ctx.lineTo(wrap.tipX + f * wrap.tipR, wrap.tipY);
-    ctx.stroke();
-  }
-
-  // Ribbon: a band and a bow.
-  const band = Math.max(3, tie.halfWidth * 0.12);
-  ctx.strokeStyle = ribbon;
-  ctx.lineCap = 'round';
-  ctx.lineWidth = band;
-  ctx.beginPath();
-  ctx.moveTo(tie.x - tie.halfWidth, tie.y - band * 0.6);
-  ctx.quadraticCurveTo(tie.x, tie.y + band * 1.4, tie.x + tie.halfWidth, tie.y - band * 0.6);
-  ctx.stroke();
-  ctx.fillStyle = ribbon;
-  for (const side of [-1, 1]) {
-    ctx.save();
-    ctx.translate(tie.x + side * band * 1.6, tie.y);
-    ctx.rotate(side * 0.35);
-    ctx.beginPath();
-    ctx.ellipse(0, 0, band * 2.2, band * 1.2, 0, 0, Math.PI * 2);
-    ctx.lineWidth = band * 0.7;
-    ctx.stroke();
-    ctx.restore();
-    ctx.beginPath();
-    ctx.moveTo(tie.x, tie.y);
-    ctx.lineTo(tie.x + side * band * 1.4, tie.y + band * 5);
-    ctx.lineWidth = band * 0.8;
-    ctx.stroke();
-  }
-  ctx.beginPath();
-  ctx.arc(tie.x, tie.y, band * 0.8, 0, Math.PI * 2);
-  ctx.fill();
-}
-
-/** Lightens (amount > 0) or darkens (< 0) a #rrggbb colour. */
-export function shade(hex: string, amount: number): string {
-  const n = parseInt(hex.replace('#', ''), 16);
-  if (Number.isNaN(n) || hex.replace('#', '').length !== 6) return hex;
-  const ch = (v: number) => Math.round(Math.min(255, Math.max(0, amount >= 0 ? v + (255 - v) * amount : v * (1 + amount))));
-  const r = ch((n >> 16) & 255);
-  const g = ch((n >> 8) & 255);
-  const b = ch(n & 255);
-  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
 }

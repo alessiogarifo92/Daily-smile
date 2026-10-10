@@ -152,7 +152,8 @@ function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
 }
 
-const WRAPS = ['#F3E6D3', '#E9DCEF', '#DCE8E0', '#F5DCD3'];
+/** Paper colours of the bouquet wrap (rendered as sprites by scripts/blender/wrap.py). */
+export const WRAPS = ['#F3E6D3', '#E9DCEF', '#DCE8E0', '#F5DCD3'];
 
 export interface BouquetPreferences {
   flowers: readonly FlowerType[];
