@@ -17,7 +17,7 @@ Ogni merge su `main` viene pubblicato in automatico da Cloudflare; ogni altro br
 
 Una tantum, dalla dashboard Cloudflare (https://dash.cloudflare.com):
 
-1. **D1**: *Storage & Databases → D1 → Create* con nome `daily-smile`; copia il *Database ID* in `worker/wrangler.toml` (`database_id`, non è un segreto).
+1. **D1**: *Storage & Databases → D1 → Create* con nome `daily-smile`; (già fatto: il suo *Database ID* è in `worker/wrangler.toml`, non è un segreto).
 2. **Worker**: *Workers & Pages → Create → Import a repository* → GitHub → `Daily-smile`, con:
    - Project name: `daily-smile` (deve coincidere con `name` in `worker/wrangler.toml`)
    - Build command: `npm ci && npm run build`

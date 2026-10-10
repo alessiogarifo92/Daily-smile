@@ -17,7 +17,7 @@ run_worker_first = ["/api/*"]
 [[d1_databases]]
 binding = "DB"
 database_name = "daily-smile"
-database_id = "REPLACE_WITH_ID_FROM_CLOUDFLARE_DASHBOARD"
+database_id = "7bf646f3-1179-488d-a334-2edf9875062d"
 migrations_dir = "migrations"
 
 # Per-IP cap on subscribe/unsubscribe calls, so nobody can burn the free D1 write quota.
