@@ -21,7 +21,12 @@ export interface Preferences {
   lang: LangSetting;
   /** Each flower only in colours it has in nature. */
   realistic: boolean;
+  /** How flowers are drawn: pre-rendered realistic sprites, or the interactive 3D model. */
+  style: FlowerStyle;
 }
+
+export type FlowerStyle = 'realistico' | '3d';
+const STYLES: readonly FlowerStyle[] = ['realistico', '3d'];
 
 export const STORAGE_KEY = 'daily-smile:prefs:v1';
 
@@ -34,6 +39,7 @@ export function defaultPreferences(): Preferences {
     theme: 'auto',
     lang: 'auto',
     realistic: true,
+    style: 'realistico',
   };
 }
 
@@ -56,6 +62,7 @@ export function sanitizePreferences(raw: unknown): Preferences {
     theme: THEMES.includes(r.theme as ThemeMode) ? (r.theme as ThemeMode) : d.theme,
     lang: LANG_SETTINGS.includes(r.lang as LangSetting) ? (r.lang as LangSetting) : d.lang,
     realistic: typeof r.realistic === 'boolean' ? r.realistic : d.realistic,
+    style: STYLES.includes(r.style as FlowerStyle) ? (r.style as FlowerStyle) : d.style,
   };
 }
 

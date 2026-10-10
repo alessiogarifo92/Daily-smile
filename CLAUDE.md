@@ -17,7 +17,7 @@ Needed environment variables / connectors for this project: Worker secrets `VAPI
 PWA (phone + browser) that every day shows a kind message and a procedurally generated 3D bouquet built from the user's flower/colour preferences, and sends a daily Web Push notification at the time the user picks.
 
 - `shared/` — pure logic used by both sides: date keys per time zone, message of the day, bouquet composition (deterministic per day + preferences), notification scheduling (DST-aware), day-phase theme.
-- `web/` — Vite + TypeScript PWA, no framework. `bouquet3d.ts`/`flowers3d.ts` (three.js) render; `composition.ts`, `prefs.ts` are pure and unit-tested. Design: direction **B · Biglietto notturno** (https://claude.ai/artifact/3uE4FdQ9569TMbhCKq51TQ); tokens in `web/src/styles.css`.
+- `web/` — Vite + TypeScript PWA, no framework. two renderers behind `view.ts`: `bouquet2d.ts` draws pre-rendered sprites (`web/public/flowers/`, made by `scripts/blender/*.py`, needs `pip install bpy`) laid out by the pure `sprites.ts`; `bouquet3d.ts`/`flowers3d.ts` (three.js, loaded on demand) for the 3D style and for flowers without sprites yet (`SPRITE_KINDS`); `composition.ts`, `prefs.ts` are pure and unit-tested. Design: direction **B · Biglietto notturno** (https://claude.ai/artifact/3uE4FdQ9569TMbhCKq51TQ); tokens in `web/src/styles.css`.
 - `worker/` — Cloudflare Worker: `src/index.ts` is the entry and must export only the handler (workerd rejects other named exports); logic in `src/app.ts`. `/api/*` + static assets from `dist/`, D1 table `subscriptions`, cron every minute sends due pushes.
 - Decisions: `docs/decisions.md`.
 

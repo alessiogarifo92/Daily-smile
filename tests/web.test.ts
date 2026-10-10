@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { DOME_CENTER, DOME_RADIUS, MAX_POLAR, easeOutBack, length, normalize, placeHead } from '../web/src/composition';
 import { STORAGE_KEY, defaultPreferences, loadPreferences, sanitizePreferences, savePreferences } from '../web/src/prefs';
+import { shade } from '../web/src/bouquet2d';
+import { SPRITE_KINDS, angleFor, canDrawSprites, createProjector, layoutBouquet, spriteColor, spriteUrl } from '../web/src/sprites';
+import { composeBouquet, FLOWER_COLORS } from '../shared/flowers';
+import { existsSync } from 'node:fs';
 import { cleanDigits, hourComplete, partsToTime, shiftTime, timeToParts } from '../web/src/timeInput';
 
 function memoryStorage(initial: Record<string, string> = {}) {
@@ -39,6 +43,9 @@ describe('preferences', () => {
     expect(p.lang).toBe('auto');
     expect(p.realistic).toBe(true);
     expect(sanitizePreferences({ realistic: false }).realistic).toBe(false);
+    expect(p.style).toBe('realistico');
+    expect(sanitizePreferences({ style: '3d' }).style).toBe('3d');
+    expect(sanitizePreferences({ style: 'vr' }).style).toBe('realistico');
     expect(sanitizePreferences({ lang: 'en' }).lang).toBe('en');
     expect(p.flowers).toEqual(['rosa']);
     expect(p.colors).toEqual(['lilla']);
@@ -142,5 +149,88 @@ describe('withTimeout', () => {
     await expect(withTimeout(Promise.resolve(7), 50)).resolves.toBe(7);
     await expect(withTimeout(new Promise(() => {}), 10)).rejects.toBeInstanceOf(PushError);
     await expect(withTimeout(Promise.reject(new Error('boom')), 50)).rejects.toThrow('boom');
+  });
+});
+
+describe('2D sprite bouquet', () => {
+  const roses = (colors: (typeof FLOWER_COLORS)[number]['id'][], day = '2026-10-10') => composeBouquet({ flowers: ['rosa'], colors }, day);
+
+  it('draws in 2D only when every flower has sprites', () => {
+    expect(SPRITE_KINDS.has('rosa')).toBe(true);
+    expect(canDrawSprites(roses(['rosso', 'panna']))).toBe(true);
+    expect(canDrawSprites(composeBouquet({ flowers: ['rosa', 'tulipano'], colors: ['rosso'] }, '2026-10-10'))).toBe(
+      composeBouquet({ flowers: ['rosa', 'tulipano'], colors: ['rosso'] }, '2026-10-10').stems.every((s) => s.type === 'rosa'),
+    );
+    expect(canDrawSprites(composeBouquet({ flowers: ['tulipano'], colors: ['rosso'] }, '2026-10-10'))).toBe(false);
+    expect(canDrawSprites({ stems: [] })).toBe(false);
+    // A colour outside the palette (lavender's natural purples) has no sprite.
+    expect(canDrawSprites({ stems: [{ ...roses(['rosso']).stems[0]!, color: '#8E7CC3' }] })).toBe(false);
+  });
+  it('every rose sprite the app can ask for exists in public/flowers', () => {
+    for (const c of FLOWER_COLORS) {
+      for (const a of ['front', 'three-quarter', 'top'] as const) {
+        const url = spriteUrl('rosa', c.id, a);
+        expect(existsSync(`web/public${url}`), url).toBe(true);
+      }
+    }
+  });
+  it('maps colours case-insensitively and rejects unknown ones', () => {
+    expect(spriteColor('#c0283c')).toBe('rosso');
+    expect(spriteColor('#123456')).toBeNull();
+  });
+  it('picks the view from how much the flower faces the camera', () => {
+    expect(angleFor(1)).toBe('top');
+    expect(angleFor(0.89)).toBe('top');
+    expect(angleFor(0.7)).toBe('three-quarter');
+    expect(angleFor(0.3)).toBe('three-quarter');
+    expect(angleFor(0.1)).toBe('front');
+    expect(angleFor(-1)).toBe('front');
+  });
+  it('projects the scene centre to the middle and nearer things larger', () => {
+    const cam = createProjector(400, 300);
+    const target = cam.project([0, 0.35, 0]);
+    expect(target.x).toBeCloseTo(200, 6);
+    expect(target.y).toBeCloseTo(150, 6);
+    expect(cam.scaleAt(2)).toBeGreaterThan(cam.scaleAt(5));
+  });
+  it('the same day and preferences always give the same layout', () => {
+    const b = roses(['rosso', 'cipria', 'panna']);
+    expect(layoutBouquet(b, 390, 420)).toEqual(layoutBouquet(roses(['rosso', 'cipria', 'panna']), 390, 420));
+    expect(layoutBouquet(roses(['rosso', 'cipria', 'panna'], '2026-10-11'), 390, 420)).not.toEqual(layoutBouquet(b, 390, 420));
+  });
+  it('places every head on screen, back to front, in its own colour', () => {
+    const b = roses(['rosso', 'cipria', 'panna']);
+    const l = layoutBouquet(b, 390, 420);
+    expect(l.heads).toHaveLength(b.stems.length);
+    expect(l.stems).toHaveLength(b.stems.length);
+    for (let i = 1; i < l.heads.length; i++) expect(l.heads[i - 1]!.depth).toBeGreaterThanOrEqual(l.heads[i]!.depth);
+    for (const h of l.heads) {
+      expect(h.x).toBeGreaterThan(0);
+      expect(h.x).toBeLessThan(390);
+      expect(h.y).toBeGreaterThan(0);
+      expect(h.y).toBeLessThan(420);
+      expect(h.size).toBeGreaterThan(20);
+      expect(['rosso', 'cipria', 'panna']).toContain(h.color);
+    }
+    expect(new Set(l.heads.map((h) => h.order)).size).toBe(b.stems.length);
+    // The paper hangs below the flowers, its tip under the rim.
+    expect(l.wrap.tipY).toBeGreaterThan(l.wrap.rimY);
+    expect(l.collar).toHaveLength(16);
+    expect(l.collar.some((c) => c.front) && l.collar.some((c) => !c.front)).toBe(true);
+  });
+  it('scales with the canvas', () => {
+    const b = roses(['rosso']);
+    const small = layoutBouquet(b, 200, 200).heads[0]!;
+    const big = layoutBouquet(b, 400, 400).heads[0]!;
+    expect(big.size).toBeCloseTo(small.size * 2, 6);
+    expect(big.x).toBeCloseTo(small.x * 2, 6);
+  });
+  it('shade lightens and darkens a colour and leaves bad input alone', () => {
+    expect(shade('#808080', 0)).toBe('#808080');
+    expect(shade('#808080', 1)).toBe('#ffffff');
+    expect(shade('#808080', -1)).toBe('#000000');
+    expect(shade('#ff0000', -0.5)).toBe('#800000');
+    expect(shade('red', 0.2)).toBe('red');
+    expect(shade('#12345', 0.2)).toBe('#12345');
   });
 });

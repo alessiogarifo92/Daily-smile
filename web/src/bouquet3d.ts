@@ -5,13 +5,10 @@ import type { Bouquet } from '../../shared/flowers';
 import { createRng } from '../../shared/random';
 import { easeOutBack, placeHead } from './composition';
 import { buildHead, createMaterials, leafGeometry, type Materials } from './flowers3d';
+import type { BouquetView } from './view';
 
-export interface BouquetView {
-  show(bouquet: Bouquet): void;
-  /** Pauses the render loop while the bouquet is off screen (saves battery and CPU). */
-  setActive(active: boolean): void;
-  dispose(): void;
-}
+export type { BouquetView };
+
 
 /** Returns null when WebGL is unavailable, so the caller can show a fallback. */
 export function createBouquetView(container: HTMLElement): BouquetView | null {

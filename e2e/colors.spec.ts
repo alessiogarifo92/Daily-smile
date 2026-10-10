@@ -23,13 +23,13 @@ export function deltaE(a: RGB, b: RGB): number {
 }
 
 /** Median petal colour: top part of the bouquet, without background and green stems/leaves. */
-async function petalColour(page: Page, flower: string, color: string, skipHeart = false): Promise<RGB> {
-  await page.addInitScript(([f, c]) => {
-    localStorage.setItem('daily-smile:prefs:v1', JSON.stringify({ flowers: [f], colors: [c], theme: 'chiaro' }));
-  }, [flower, color]);
+async function petalColour(page: Page, flower: string, color: string, skipHeart = false, style: '3d' | 'realistico' = '3d'): Promise<RGB> {
+  await page.addInitScript(([f, c, s]) => {
+    localStorage.setItem('daily-smile:prefs:v1', JSON.stringify({ flowers: [f], colors: [c], theme: 'chiaro', style: s }));
+  }, [flower, color, style]);
   await page.clock.setFixedTime(new Date('2026-10-10T10:00:00+02:00'));
   await page.goto('/');
-  await page.locator('#stage canvas').waitFor();
+  await expect(page.locator('#stage')).toHaveAttribute('data-renderer', style === '3d' ? '3d' : '2d', { timeout: 30_000 });
   await page.waitForTimeout(4000); // entrance animation
   return page.evaluate((skip) => {
     const c = document.querySelector<HTMLCanvasElement>('#stage canvas')!;
@@ -55,12 +55,12 @@ async function petalColour(page: Page, flower: string, color: string, skipHeart 
   }, skipHeart);
 }
 
-for (const c of FLOWER_COLORS) {
-  test(`roses in ${c.label} look ${c.label}`, async ({ page }) => {
-    const got = await petalColour(page, 'rosa', c.id);
+for (const [style, kind] of [['3d', '3D'], ['realistico', '2D']] as const) for (const c of FLOWER_COLORS) {
+  test(`${kind} roses in ${c.label} look ${c.label}`, async ({ page }) => {
+    const got = await petalColour(page, 'rosa', c.id, false, style);
     const target = hexToRgb(c.hex);
     const dE = deltaE(got, target);
-    console.log(`${c.id.padEnd(8)} target ${c.hex} got rgb(${got.join(',')}) ΔE ${dE.toFixed(1)}`);
+    console.log(`${kind} ${c.id.padEnd(8)} target ${c.hex} got rgb(${got.join(',')}) ΔE ${dE.toFixed(1)}`);
     // Closer to the chosen colour than to any other colour of the palette, and close in absolute terms.
     const nearest = [...FLOWER_COLORS].sort((a, b) => deltaE(got, hexToRgb(a.hex)) - deltaE(got, hexToRgb(b.hex)))[0]!;
     expect(nearest.id, `${c.id} rendered rgb(${got.join(',')}) reads as ${nearest.id}`).toBe(c.id);

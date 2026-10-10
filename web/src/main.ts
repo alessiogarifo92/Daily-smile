@@ -1,13 +1,15 @@
 import './styles.css';
 import { dateKey, formatDate, localParts } from '../../shared/dates';
-import { FLOWER_COLORS, FLOWER_TYPES, colorLabel, composeBouquet, describeBouquet, flowerLabel, type FlowerColor, type FlowerType } from '../../shared/flowers';
+import { FLOWER_COLORS, FLOWER_TYPES, colorLabel, composeBouquet, describeBouquet, flowerLabel, type Bouquet, type FlowerColor, type FlowerType } from '../../shared/flowers';
 import { resolveLang, t, type Lang, type LangSetting, type MessageKey } from '../../shared/i18n';
 import { messageFor } from '../../shared/messages';
 import { formatTime, giftDayKey, parseTime } from '../../shared/schedule';
 import { greetingFor, isDark, resolvePhase, type ThemeMode } from '../../shared/theme';
-import { createBouquetView, type BouquetView } from './bouquet3d';
+import { createBouquet2DView } from './bouquet2d';
+import { canDrawSprites } from './sprites';
+import type { BouquetView } from './view';
 import { flowerIcon } from './flowerIcons';
-import { loadPreferences, savePreferences, type Preferences } from './prefs';
+import { loadPreferences, savePreferences, type FlowerStyle, type Preferences } from './prefs';
 import { PushError, disablePush, enablePush, pushSupport } from './push';
 import { cleanDigits, hourComplete, partsToTime, shiftTime, timeToParts } from './timeInput';
 
@@ -23,7 +25,9 @@ const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Rom
 
 let prefs = loadPreferences(storage);
 let lang: Lang = resolveLang(prefs.lang, navigator.language);
-let view: BouquetView | null | undefined;
+type Renderer = '2d' | '3d';
+let view: { kind: Renderer; view: BouquetView } | null = null;
+let viewRequest = 0;
 let shownKey = '';
 /** Preferences changed while the Today tab was hidden: redraw it when it comes back. */
 let todayStale = false;
@@ -74,9 +78,38 @@ function renderToday(force = false): void {
   $('message').textContent = messageFor(key, lang);
   $('bouquet-desc').textContent = t(lang, 'bouquet.today', { d: description });
   $('stage').setAttribute('aria-label', t(lang, 'stage.aria', { d: description }));
-  if (view === undefined) view = createBouquetView($('stage'));
-  if (view) view.show(bouquet);
-  else $('stage-fallback').hidden = false;
+  void showBouquet(bouquet);
+}
+
+/**
+ * Realistic style draws pre-rendered sprites in 2D; a bouquet with a flower that has no sprite
+ * yet, or the 3D style, uses the 3D view, whose code (three.js) is only downloaded then.
+ */
+async function showBouquet(bouquet: Bouquet): Promise<void> {
+  const want: Renderer = prefs.style === 'realistico' && canDrawSprites(bouquet) ? '2d' : '3d';
+  if (view?.kind === want) return view.view.show(bouquet);
+  const request = ++viewRequest;
+  const stage = $('stage');
+  let kind = want;
+  let next = want === '2d' ? await createBouquet2DView(stage, bouquet) : null;
+  if (!next && request === viewRequest) {
+    kind = '3d';
+    const { createBouquetView } = await import('./bouquet3d');
+    if (request === viewRequest) {
+      next = createBouquetView(stage);
+      next?.show(bouquet);
+    }
+  }
+  if (request !== viewRequest) return next?.dispose();
+  view?.view.dispose();
+  view = next ? { kind, view: next } : null;
+  stage.dataset.renderer = next ? kind : 'none';
+  $('stage-fallback').hidden = next !== null;
+  next?.setActive(currentTab() === 'oggi');
+}
+
+function currentTab(): 'oggi' | 'preferenze' {
+  return location.hash === '#/preferenze' ? 'preferenze' : 'oggi';
 }
 
 function renderNext(): void {
@@ -97,7 +130,7 @@ function renderNext(): void {
 }
 
 function route(): void {
-  const tab = location.hash === '#/preferenze' ? 'preferenze' : 'oggi';
+  const tab = currentTab();
   $('view-oggi').hidden = tab !== 'oggi';
   $('view-preferenze').hidden = tab !== 'preferenze';
   document.querySelectorAll<HTMLAnchorElement>('.tabs a').forEach((a) => {
@@ -108,7 +141,7 @@ function route(): void {
     todayStale = false;
     renderToday(true);
   }
-  view?.setActive(tab === 'oggi');
+  view?.view.setActive(tab === 'oggi');
   if (tab === 'preferenze') fillForm();
   window.scrollTo(0, 0);
 }
@@ -167,7 +200,7 @@ function buildForm(): void {
     colorList.append(item);
   }
   $('realistic').addEventListener('change', commitPicks);
-  document.querySelectorAll<HTMLInputElement>('input[name="theme"], input[name="lang"]').forEach((i) => i.addEventListener('change', commitPicks));
+  document.querySelectorAll<HTMLInputElement>('input[name="theme"], input[name="lang"], input[name="style"]').forEach((i) => i.addEventListener('change', commitPicks));
 
   // Time: two numeric boxes (numeric keypad on phones, always 24h).
   const h = hoursBox();
@@ -226,7 +259,8 @@ function toggle<T>(set: Set<T>, id: T, input: HTMLInputElement, lastMsg: Message
 function commitPicks(): void {
   const theme = (document.querySelector<HTMLInputElement>('input[name="theme"]:checked')?.value ?? prefs.theme) as ThemeMode;
   const langSetting = (document.querySelector<HTMLInputElement>('input[name="lang"]:checked')?.value ?? prefs.lang) as LangSetting;
-  prefs = { ...prefs, flowers: [...draft.flowers], colors: [...draft.colors], realistic: $<HTMLInputElement>('realistic').checked, theme, lang: langSetting };
+  const style = (document.querySelector<HTMLInputElement>('input[name="style"]:checked')?.value ?? prefs.style) as FlowerStyle;
+  prefs = { ...prefs, flowers: [...draft.flowers], colors: [...draft.colors], realistic: $<HTMLInputElement>('realistic').checked, theme, lang: langSetting, style };
   const saved = savePreferences(storage, prefs);
   const nextLang = resolveLang(langSetting, navigator.language);
   if (nextLang !== lang) {
@@ -259,6 +293,7 @@ function fillForm(): void {
   $<HTMLInputElement>('realistic').checked = prefs.realistic;
   document.querySelectorAll<HTMLInputElement>('input[name="theme"]').forEach((i) => (i.checked = i.value === prefs.theme));
   document.querySelectorAll<HTMLInputElement>('input[name="lang"]').forEach((i) => (i.checked = i.value === prefs.lang));
+  document.querySelectorAll<HTMLInputElement>('input[name="style"]').forEach((i) => (i.checked = i.value === prefs.style));
   status(null);
   pickStatus(null);
   renderPreview();
