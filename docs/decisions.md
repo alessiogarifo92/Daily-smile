@@ -12,7 +12,7 @@
 | 3.5 Tema | Sfondo automatico per ora di accesso: mattina 5–12 chiaro, pomeriggio 12–18 chiaro caldo, sera 18–21 tramonto, notte 21–5 blu notte; override Chiaro/Scuro | Richiesta utente |
 | Test | `npm run verify` locale prima di ogni push; CI esegue lo stesso comando su ogni push e PR | Repo reso pubblico: minuti Actions gratuiti; se tornasse privato vale la regola globale in `test-verification` |
 | Worker | Al massimo 3 notifiche per esecuzione del cron (≈4.300 al giorno), le altre il minuto dopo | Piano Free: ~10 ms di CPU per invocazione, ~3 ms per notifica (misurato). Per crescere: piano Paid (5 $/mese) e lotto più grande |
-| Deploy | Workers Builds: `main` → produzione, altri branch → anteprima; migrazioni applicate da entrambi (solo additive); log con Observability; Node 22 | Audit pre-deploy (`release-auditor`) |
+| Deploy | GitHub Actions (al posto di Workers Builds, che si configura solo dalla dashboard): `main` → produzione, altri branch → anteprima, smoke test sull'URL; migrazioni applicate da entrambi (solo additive); log con Observability; Node 22 | Audit pre-deploy (`release-auditor`) |
 | Sicurezza (audit pre-deploy) | Iscrizioni scartate dopo 3 fallimenti o subito se il push service le rifiuta; chiavi validate in byte; solo `application/json`; limite per IPv6 /64; 503 senza rate limiter; 413 prima di leggere body grandi; click notifica solo su questo sito | Evita che iscrizioni spazzatura ritardino quelle vere o esauriscano la quota D1 gratuita |
 | Rischio accettato | Gli URL di anteprima dei branch usano lo stesso D1 e gli stessi segreti della produzione | App hobby senza dati sensibili; build solo dei branch del repo, non dei fork |
 

@@ -8,9 +8,9 @@ This project relies on the private repo `alessiogarifo92/claude-skills` (skills,
    Claude Code detects agent files added to an existing `~/.claude/agents/` without a restart, but not when that directory did not exist at session start (typical in a fresh container). Then either restart the session once, or use the fallback above for this session. `templates/session-start-hook.sh` can install everything before the session starts (best effort).
 4. If the attach fails, say so in visible text and ask the user how to proceed. Never continue silently without the rules.
 
-Run / preview (manual gate): `cd /home/user/Daily-smile && npm run build && npm run preview` → http://localhost:4173 (PWA only; push needs the Worker). Full stack locally: `npm run build && npx wrangler dev -c worker/wrangler.toml` (needs `worker/.dev.vars`, see README). Once Workers Builds is connected, every non-production branch gets a preview URL (Cloudflare dashboard → Worker → Deployments, or the check Cloudflare posts on the commit): use it for the manual gate.
+Run / preview (manual gate): `cd /home/user/Daily-smile && npm run build && npm run preview` → http://localhost:4173 (PWA only; push needs the Worker). Full stack locally: `npm run build && npx wrangler dev -c worker/wrangler.toml` (needs `worker/.dev.vars`, see README). Every non-`main` branch push deploys a preview URL (shown in the `deploy` job summary and log): use it for the manual gate.
 
-Needed environment variables / connectors for this project: Worker secrets `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (generate with `node scripts/gen-vapid.mjs`), `VAPID_SUBJECT` (mailto:), all set in the Cloudflare dashboard; D1 `database_id` in `worker/wrangler.toml`. Deploy: Cloudflare Workers Builds (production = `main`, other branches get preview URLs); settings in README. No `.mcp.json`.
+Needed environment variables / connectors for this project: Worker secrets `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (generate with `node scripts/gen-vapid.mjs`), `VAPID_SUBJECT` (mailto:), all set in the Cloudflare dashboard; D1 `database_id` in `worker/wrangler.toml`. Deploy: GitHub Actions job `deploy` (`scripts/deploy.sh`: `main` → production, other branches → preview URL; first run creates the Worker and generates VAPID secrets in the runner), then `scripts/smoke.sh` on the URL. Needs repo secrets `CLOUDFLARE_API_TOKEN` (Workers + D1 Edit) and `CLOUDFLARE_ACCOUNT_ID`. The cloud container cannot reach Cloudflare (network policy), so deploy only through CI. No `.mcp.json`.
 
 ## Project: Daily Smile
 
@@ -18,7 +18,7 @@ PWA (phone + browser) that every day shows a kind message and a procedurally gen
 
 - `shared/` — pure logic used by both sides: date keys per time zone, message of the day, bouquet composition (deterministic per day + preferences), notification scheduling (DST-aware), day-phase theme.
 - `web/` — Vite + TypeScript PWA, no framework. `bouquet3d.ts`/`flowers3d.ts` (three.js) render; `composition.ts`, `prefs.ts` are pure and unit-tested. Design: direction **B · Biglietto notturno** (https://claude.ai/artifact/3uE4FdQ9569TMbhCKq51TQ); tokens in `web/src/styles.css`.
-- `worker/` — Cloudflare Worker: `/api/*` + static assets from `dist/`, D1 table `subscriptions`, cron every minute sends due pushes.
+- `worker/` — Cloudflare Worker: `src/index.ts` is the entry and must export only the handler (workerd rejects other named exports); logic in `src/app.ts`. `/api/*` + static assets from `dist/`, D1 table `subscriptions`, cron every minute sends due pushes.
 - Decisions: `docs/decisions.md`.
 
 ## Verification (gate before every push)

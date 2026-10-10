@@ -11,25 +11,23 @@ npm run dev                    # http://localhost:5173 (solo interfaccia)
 npm run verify                 # typecheck + unit test + build + e2e (obbligatorio prima di ogni push)
 ```
 
-## Deploy su Cloudflare con Workers Builds (gratuito)
+## Deploy su Cloudflare (automatico da GitHub Actions, gratuito)
 
-Ogni merge su `main` viene pubblicato in automatico da Cloudflare; ogni altro branch ottiene un link di anteprima.
+Il job `deploy` in `.github/workflows/ci.yml` parte dopo che `npm run verify` è verde, solo sui push in questo repo:
+- push su `main` → **produzione** (`https://daily-smile.<tuo-sottodominio>.workers.dev`);
+- push su un altro branch → **anteprima** con un suo URL, la produzione non cambia;
+- il primo deploy crea il Worker e genera le chiavi VAPID dentro il runner, salvandole come segreti del Worker (nessuno le vede).
 
-Una tantum, dalla dashboard Cloudflare (https://dash.cloudflare.com):
+Configurazione una tantum, tutta dal browser (anche da telefono):
+1. Cloudflare → *My Profile → API Tokens → Create Token* → template **Edit Cloudflare Workers**, aggiungi il permesso **Account → D1 → Edit**, limita all'account; crea e copia il token.
+2. Cloudflare → home dell'account: copia l'**Account ID**.
+3. GitHub → repo → *Settings → Secrets and variables → Actions → New repository secret*: `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID`.
+4. Rilancia l'ultima esecuzione di *CI* (o fai un push): il riepilogo del job `deploy` mostra l'URL e il risultato dello smoke test (`scripts/smoke.sh`).
 
-1. **D1**: *Storage & Databases → D1 → Create* con nome `daily-smile`; (già fatto: il suo *Database ID* è in `worker/wrangler.toml`, non è un segreto).
-2. **Worker**: *Workers & Pages → Create → Import a repository* → GitHub → `Daily-smile`, con:
-   - Project name: `daily-smile` (deve coincidere con `name` in `worker/wrangler.toml`)
-   - Build command: `npm ci && npm run build`
-   - Deploy command: `npx wrangler d1 migrations apply DB --remote -c worker/wrangler.toml && npx wrangler deploy -c worker/wrangler.toml`
-   - Non-production branch deploy command: `npx wrangler d1 migrations apply DB --remote -c worker/wrangler.toml && npx wrangler versions upload -c worker/wrangler.toml` (le anteprime usano lo stesso database: le migrazioni sono solo additive, quindi è sicuro)
-   - Variabile di build `NODE_VERSION` = `22` (anche in `.node-version`)
-   - Il token API che Workers Builds crea deve avere il permesso **D1 Edit** (serve per le migrazioni)
-   - Production branch: `main`; abilita le build dei branch non di produzione
-3. **Segreti**: *Worker → Settings → Variables and Secrets*, tipo **Secret**: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (da `node scripts/gen-vapid.mjs`), `VAPID_SUBJECT` (`mailto:<tua email>`).
+Il database D1 `daily-smile` esiste già (ID in `worker/wrangler.toml`). Le migrazioni in `worker/migrations/` sono solo additive e vengono applicate a ogni deploy.
 
 Rollback: *Worker → Deployments* → versione precedente → *Rollback* (oppure `npx wrangler rollback -c worker/wrangler.toml`). Le migrazioni sono solo additive, quindi una versione precedente funziona sullo stesso database.
 
-Test locale completo (PWA + API, senza cron reale): metti le tre variabili in `worker/.dev.vars`, poi `npm run build && npx wrangler dev -c worker/wrangler.toml`.
+Test locale completo (PWA + API, senza cron reale): `node scripts/gen-vapid.mjs > worker/.dev.vars`, aggiungi `VAPID_SUBJECT=https://github.com/alessiogarifo92/Daily-smile`, poi `npm run build && npx wrangler d1 migrations apply DB --local -c worker/wrangler.toml && npx wrangler dev -c worker/wrangler.toml` e `bash scripts/smoke.sh http://localhost:8787`.
 
 Su iPhone le notifiche funzionano solo dopo **Condividi → Aggiungi alla schermata Home** (iOS 16.4+).

@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import worker, { MAX_FAILURES, PUSH_BATCH, clientKey, handleApi, sendDue, webPushSender, type Env, type Sender } from '../src/index';
+import { MAX_FAILURES, PUSH_BATCH, clientKey, handleApi, sendDue, webPushSender, type Env, type Sender } from '../src/app';
+import worker from '../src/index';
 import { isAllowedEndpoint, parseSubscribeBody } from '../src/validate';
 
 /** Minimal D1 stand-in backed by a real SQLite database, so the SQL itself is exercised. */
@@ -44,6 +45,12 @@ const allowAll = { limit: async () => ({ success: true }) } as unknown as RateLi
 let env: Env;
 beforeEach(() => {
   env = { DB: fakeD1(), SUBSCRIBE_LIMITER: allowAll, VAPID_PUBLIC_KEY: 'PUBKEY', VAPID_PRIVATE_KEY: 'PRIV', VAPID_SUBJECT: 'mailto:test@example.com' };
+});
+
+describe('entry module', () => {
+  it('exports only the handler (workerd rejects any other named export)', async () => {
+    expect(Object.keys(await import('../src/index'))).toEqual(['default']);
+  });
 });
 
 describe('endpoint allow-list', () => {
