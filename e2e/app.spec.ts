@@ -132,7 +132,7 @@ test('flowers and colours save on their own and the preview follows, with realis
   await expect(page.locator('#bouquet-desc')).not.toContainText('rose');
 });
 
-test('flower style: realistic roses in 2D, 3D on request, and 3D for flowers without sprites yet', async ({ page }) => {
+test('flower style: realistic flowers in 2D, 3D on request, and 3D for flowers without sprites yet', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('daily-smile:prefs:v1', JSON.stringify({ flowers: ['rosa'], colors: ['rosso', 'panna'] }));
   });
@@ -150,13 +150,13 @@ test('flower style: realistic roses in 2D, 3D on request, and 3D for flowers wit
   await expect(stage).toHaveAttribute('data-renderer', '3d', { timeout: 30_000 });
   await expect(stage.locator('canvas')).toHaveCount(1);
 
-  // Back to realistic, then add tulips (no sprites yet): the bouquet stays in 3D.
+  // Back to realistic, then add daisies (no sprites yet): the bouquet stays in 3D.
   await page.getByRole('link', { name: 'Preferenze' }).click();
   await page.getByText('Realistico', { exact: true }).click();
   await page.getByRole('link', { name: 'Oggi' }).click();
   await expect(stage).toHaveAttribute('data-renderer', '2d');
   await page.getByRole('link', { name: 'Preferenze' }).click();
-  await page.getByLabel('Tulipani', { exact: true }).check();
+  await page.getByLabel('Margherite', { exact: true }).check();
   await page.getByLabel('Rose', { exact: true }).uncheck();
   await page.getByRole('link', { name: 'Oggi' }).click();
   await expect(stage).toHaveAttribute('data-renderer', '3d', { timeout: 30_000 });

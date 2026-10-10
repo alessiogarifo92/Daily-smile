@@ -55,9 +55,10 @@ async function petalColour(page: Page, flower: string, color: string, skipHeart 
   }, skipHeart);
 }
 
-for (const [style, kind] of [['3d', '3D'], ['realistico', '2D']] as const) for (const c of FLOWER_COLORS) {
-  test(`${kind} roses in ${c.label} look ${c.label}`, async ({ page }) => {
-    const got = await petalColour(page, 'rosa', c.id, false, style);
+const RUNS = [['rosa', '3d', '3D roses'], ['rosa', 'realistico', '2D roses'], ['tulipano', 'realistico', '2D tulips']] as const;
+for (const [flower, style, kind] of RUNS) for (const c of FLOWER_COLORS) {
+  test(`${kind} in ${c.label} look ${c.label}`, async ({ page }) => {
+    const got = await petalColour(page, flower, c.id, false, style);
     const target = hexToRgb(c.hex);
     const dE = deltaE(got, target);
     console.log(`${kind} ${c.id.padEnd(8)} target ${c.hex} got rgb(${got.join(',')}) ΔE ${dE.toFixed(1)}`);
