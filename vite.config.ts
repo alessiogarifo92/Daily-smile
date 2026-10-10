@@ -10,7 +10,7 @@ export default defineConfig({
     environment: 'node',
     coverage: {
       provider: 'v8',
-      include: ['shared/**/*.ts', 'web/src/prefs.ts', 'web/src/composition.ts', 'worker/src/**/*.ts'],
+      include: ['shared/**/*.ts', 'web/src/prefs.ts', 'web/src/composition.ts', 'web/src/timeInput.ts', 'worker/src/**/*.ts'],
       reporter: ['text', 'json-summary', 'lcov'],
       thresholds: { lines: 80, functions: 80, branches: 75, statements: 80 },
     },

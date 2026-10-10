@@ -1,5 +1,6 @@
 import { buildPushPayload, type VapidKeys } from '@block65/webcrypto-web-push';
 import { dateKey } from '../../shared/dates';
+import { isLang, t } from '../../shared/i18n';
 import { messageFor } from '../../shared/messages';
 import { nextSendAt, parseTime } from '../../shared/schedule';
 import { parseSubscribeBody, parseUnsubscribeBody, type StoredSubscription } from './validate';
@@ -19,6 +20,7 @@ interface Row {
   auth: string;
   time: string;
   time_zone: string;
+  lang: string;
   next_send_at: number;
   failures: number;
 }
@@ -92,11 +94,11 @@ export async function handleApi(request: Request, env: Env, now = Date.now()): P
     const s = parsed.value;
     const next = nextSendAt(now, parseTime(s.time)!, s.timeZone);
     await env.DB.prepare(
-      `INSERT INTO subscriptions (endpoint, p256dh, auth, time, time_zone, next_send_at, created_at)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-       ON CONFLICT(endpoint) DO UPDATE SET p256dh = ?2, auth = ?3, time = ?4, time_zone = ?5, next_send_at = ?6, failures = 0`,
+      `INSERT INTO subscriptions (endpoint, p256dh, auth, time, time_zone, next_send_at, created_at, lang)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+       ON CONFLICT(endpoint) DO UPDATE SET p256dh = ?2, auth = ?3, time = ?4, time_zone = ?5, next_send_at = ?6, failures = 0, lang = ?8`,
     )
-      .bind(s.endpoint, s.p256dh, s.auth, s.time, s.timeZone, next, now)
+      .bind(s.endpoint, s.p256dh, s.auth, s.time, s.timeZone, next, now, s.lang)
       .run();
     return json({ ok: true, nextSendAt: next });
   }
@@ -118,18 +120,19 @@ export const PUSH_BATCH = 3;
 
 /** Cron: deliver every notification that is due, then plan the next one. */
 export async function sendDue(env: Env, now = Date.now(), send: Sender = webPushSender, batch = PUSH_BATCH): Promise<{ sent: number; removed: number; failed: number }> {
-  const { results } = await env.DB.prepare('SELECT endpoint, p256dh, auth, time, time_zone, next_send_at, failures FROM subscriptions WHERE next_send_at <= ?1 ORDER BY next_send_at LIMIT ?2')
+  const { results } = await env.DB.prepare('SELECT endpoint, p256dh, auth, time, time_zone, next_send_at, failures, lang FROM subscriptions WHERE next_send_at <= ?1 ORDER BY next_send_at LIMIT ?2')
     .bind(now, batch)
     .all<Row>();
   let sent = 0;
   let removed = 0;
   let failed = 0;
   for (const row of results) {
-    const sub: StoredSubscription = { endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth, time: row.time, timeZone: row.time_zone };
-    const body = messageFor(dateKey(now, row.time_zone));
+    const lang = isLang(row.lang) ? row.lang : 'it';
+    const sub: StoredSubscription = { endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth, time: row.time, timeZone: row.time_zone, lang };
+    const body = messageFor(dateKey(now, row.time_zone), lang);
     let status: number;
     try {
-      status = await send(sub, { title: 'Il tuo bouquet di oggi è arrivato', body, url: '/' }, env);
+      status = await send(sub, { title: t(lang, 'notif.title'), body, url: '/' }, env);
     } catch {
       status = 0;
     }

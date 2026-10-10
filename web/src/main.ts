@@ -1,12 +1,14 @@
 import './styles.css';
-import { dateKey, italianDate, localParts } from '../../shared/dates';
-import { FLOWER_COLORS, FLOWER_TYPES, composeBouquet, type FlowerColor, type FlowerType } from '../../shared/flowers';
+import { dateKey, formatDate, localParts } from '../../shared/dates';
+import { FLOWER_COLORS, FLOWER_TYPES, colorLabel, composeBouquet, describeBouquet, flowerLabel, type FlowerColor, type FlowerType } from '../../shared/flowers';
+import { resolveLang, t, type Lang, type LangSetting, type MessageKey } from '../../shared/i18n';
 import { messageFor } from '../../shared/messages';
 import { formatTime, parseTime } from '../../shared/schedule';
 import { greetingFor, isDark, resolvePhase, type ThemeMode } from '../../shared/theme';
 import { createBouquetView, type BouquetView } from './bouquet3d';
 import { loadPreferences, savePreferences, type Preferences } from './prefs';
-import { disablePush, enablePush, pushSupport } from './push';
+import { PushError, disablePush, enablePush, pushSupport } from './push';
+import { cleanDigits, hourComplete, partsToTime, shiftTime, timeToParts } from './timeInput';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const storage = (() => {
@@ -19,6 +21,7 @@ const storage = (() => {
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Rome';
 
 let prefs = loadPreferences(storage);
+let lang: Lang = resolveLang(prefs.lang, navigator.language);
 let view: BouquetView | null | undefined;
 let shownKey = '';
 
@@ -26,11 +29,24 @@ function todayKey(): string {
   return dateKey(Date.now(), timeZone);
 }
 
+/** Static texts marked in the HTML with data-i18n / data-i18n-aria. */
+function applyLanguage(): void {
+  document.documentElement.lang = lang;
+  document.querySelectorAll<HTMLElement>('[data-i18n]').forEach((el) => (el.textContent = t(lang, el.dataset.i18n as MessageKey)));
+  document.querySelectorAll<HTMLElement>('[data-i18n-aria]').forEach((el) => el.setAttribute('aria-label', t(lang, el.dataset.i18nAria as MessageKey)));
+  document.querySelectorAll<HTMLElement>('input[name="flower"]').forEach((input) => {
+    const label = input.parentElement?.querySelector('span');
+    if (label) label.textContent = flowerLabel(input.getAttribute('value') as FlowerType, lang);
+  });
+  document.querySelectorAll<HTMLElement>('.swatch').forEach((b) => b.setAttribute('aria-label', colorLabel(b.dataset.color as FlowerColor, lang)));
+  pushHint();
+}
+
 function applyTheme(mode: ThemeMode): void {
   const phase = resolvePhase(mode, localParts(Date.now(), timeZone).hour);
   document.documentElement.dataset.phase = phase;
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark(phase) ? (phase === 'sera' ? '#3B2F5C' : '#1F2340') : '#F7EEE4');
-  $('greeting').textContent = greetingFor(phase);
+  $('greeting').textContent = greetingFor(phase, lang);
 }
 
 function renderToday(force = false): void {
@@ -38,12 +54,13 @@ function renderToday(force = false): void {
   if (!force && key === shownKey) return;
   shownKey = key;
   const bouquet = composeBouquet(prefs, key);
-  const pretty = italianDate(key);
+  const description = describeBouquet(bouquet, lang);
+  const pretty = formatDate(key, lang);
   $('today').textContent = pretty;
   $('card-date').textContent = pretty;
-  $('message').textContent = messageFor(key);
-  $('bouquet-desc').textContent = `Il bouquet di oggi: ${bouquet.description}.`;
-  $('stage').setAttribute('aria-label', `Bouquet 3D di ${bouquet.description}`);
+  $('message').textContent = messageFor(key, lang);
+  $('bouquet-desc').textContent = t(lang, 'bouquet.today', { d: description });
+  $('stage').setAttribute('aria-label', t(lang, 'stage.aria', { d: description }));
   if (view === undefined) view = createBouquetView($('stage'));
   if (view) view.show(bouquet);
   else $('stage-fallback').hidden = false;
@@ -55,14 +72,14 @@ function renderNext(): void {
   el.textContent = '';
   if (prefs.notifications) {
     const now = localParts(Date.now(), timeZone);
-    const t = parseTime(prefs.time);
-    const later = t !== null && now.hour * 60 + now.minute < t.hour * 60 + t.minute;
-    el.textContent = `Prossimo bouquet ${later ? 'oggi' : 'domani'} alle ${prefs.time}`;
+    const time = parseTime(prefs.time);
+    const later = time !== null && now.hour * 60 + now.minute < time.hour * 60 + time.minute;
+    el.textContent = t(lang, later ? 'next.today' : 'next.tomorrow', { t: prefs.time });
   } else {
-    el.append('Vuoi riceverlo ogni giorno? ');
+    el.append(t(lang, 'next.ask'));
     const a = document.createElement('a');
     a.href = '#/preferenze';
-    a.textContent = 'Attiva la notifica';
+    a.textContent = t(lang, 'next.enable');
     el.append(a);
   }
 }
@@ -82,17 +99,25 @@ function route(): void {
 // ---- Preferences form ----
 
 const draft = { flowers: new Set<FlowerType>(), colors: new Set<FlowerColor>() };
+const hoursBox = () => $<HTMLInputElement>('time-h');
+const minutesBox = () => $<HTMLInputElement>('time-m');
+
+function setTimeBoxes(value: string): void {
+  const time = parseTime(value) ?? { hour: 8, minute: 0 };
+  [hoursBox().value, minutesBox().value] = timeToParts(time);
+}
 
 function buildForm(): void {
   const flowerList = $('flower-list');
   for (const f of FLOWER_TYPES) {
     const label = document.createElement('label');
+    const text = document.createElement('span');
     const input = document.createElement('input');
     input.type = 'checkbox';
     input.name = 'flower';
     input.value = f.id;
-    input.addEventListener('change', () => toggle(draft.flowers, f.id, input, 'Tieni almeno un fiore.'));
-    label.append(f.label, input);
+    input.addEventListener('change', () => toggle(draft.flowers, f.id, input, 'status.keepFlower'));
+    label.append(text, input);
     flowerList.append(label);
   }
   const colorList = $('color-list');
@@ -102,35 +127,40 @@ function buildForm(): void {
     b.className = 'swatch';
     b.dataset.color = c.id;
     b.style.background = c.hex;
-    b.setAttribute('aria-label', c.label);
     b.addEventListener('click', () => {
-      if (draft.colors.has(c.id) && draft.colors.size === 1) return status('Tieni almeno un colore.');
+      if (draft.colors.has(c.id) && draft.colors.size === 1) return status('status.keepColor');
       if (draft.colors.has(c.id)) draft.colors.delete(c.id);
       else draft.colors.add(c.id);
       b.setAttribute('aria-pressed', String(draft.colors.has(c.id)));
-      status('');
+      status(null);
     });
     colorList.append(b);
   }
-  const time = $<HTMLInputElement>('time');
+
+  // Time: two numeric boxes (numeric keypad on phones, always 24h).
+  const h = hoursBox();
+  const m = minutesBox();
+  for (const box of [h, m]) {
+    box.addEventListener('focus', () => box.select());
+    box.addEventListener('input', () => (box.value = cleanDigits(box.value)));
+  }
+  h.addEventListener('input', () => {
+    if (hourComplete(h.value)) m.focus();
+  });
+  const normalize = () => {
+    const time = partsToTime(h.value, m.value);
+    if (time) setTimeBoxes(formatTime(time));
+  };
+  h.addEventListener('blur', normalize);
+  m.addEventListener('blur', normalize);
   const step = (delta: number) => {
-    const t = parseTime(time.value) ?? { hour: 8, minute: 0 };
-    const m = (((t.hour * 60 + t.minute + delta) % 1440) + 1440) % 1440;
-    time.value = formatTime({ hour: Math.floor(m / 60), minute: m % 60 });
+    const time = partsToTime(h.value, m.value) ?? { hour: 8, minute: 0 };
+    setTimeBoxes(formatTime(shiftTime(time, delta)));
   };
   $('time-minus').addEventListener('click', () => step(-15));
   $('time-plus').addEventListener('click', () => step(15));
 
-  const support = pushSupport();
-  const hint = $('push-hint');
-  if (support === 'needs-install') {
-    hint.hidden = false;
-    hint.textContent = 'Su iPhone: tocca Condividi › Aggiungi alla schermata Home, poi apri Daily Smile da lì per attivare le notifiche.';
-  } else if (support === 'unsupported') {
-    hint.hidden = false;
-    hint.textContent = 'Questo browser non supporta le notifiche push.';
-  }
-  $<HTMLInputElement>('notifications').disabled = support !== 'supported';
+  $<HTMLInputElement>('notifications').disabled = pushSupport() !== 'supported';
 
   $('prefs').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -138,7 +168,15 @@ function buildForm(): void {
   });
 }
 
-function toggle<T>(set: Set<T>, id: T, input: HTMLInputElement, lastMsg: string): void {
+function pushHint(): void {
+  const support = pushSupport();
+  const hint = $('push-hint');
+  hint.hidden = support === 'supported';
+  if (support === 'needs-install') hint.textContent = t(lang, 'hint.ios');
+  else if (support === 'unsupported') hint.textContent = t(lang, 'hint.unsupported');
+}
+
+function toggle<T>(set: Set<T>, id: T, input: HTMLInputElement, lastMsg: MessageKey): void {
   if (!input.checked && set.size === 1 && set.has(id)) {
     input.checked = true;
     status(lastMsg);
@@ -146,7 +184,7 @@ function toggle<T>(set: Set<T>, id: T, input: HTMLInputElement, lastMsg: string)
   }
   if (input.checked) set.add(id);
   else set.delete(id);
-  status('');
+  status(null);
 }
 
 function fillForm(): void {
@@ -154,49 +192,56 @@ function fillForm(): void {
   draft.colors = new Set(prefs.colors);
   document.querySelectorAll<HTMLInputElement>('input[name="flower"]').forEach((i) => (i.checked = draft.flowers.has(i.value as FlowerType)));
   document.querySelectorAll<HTMLButtonElement>('.swatch').forEach((b) => b.setAttribute('aria-pressed', String(draft.colors.has(b.dataset.color as FlowerColor))));
-  $<HTMLInputElement>('time').value = prefs.time;
+  setTimeBoxes(prefs.time);
   $<HTMLInputElement>('notifications').checked = prefs.notifications;
   document.querySelectorAll<HTMLInputElement>('input[name="theme"]').forEach((i) => (i.checked = i.value === prefs.theme));
-  status('');
+  document.querySelectorAll<HTMLInputElement>('input[name="lang"]').forEach((i) => (i.checked = i.value === prefs.lang));
+  status(null);
 }
 
-function status(text: string): void {
-  $('prefs-status').textContent = text;
+function status(key: MessageKey | null): void {
+  $('prefs-status').textContent = key ? t(lang, key) : '';
 }
 
 async function submit(): Promise<void> {
-  const time = parseTime($<HTMLInputElement>('time').value);
-  if (!time) return status('Scegli un orario valido.');
+  const time = partsToTime(hoursBox().value, minutesBox().value);
+  if (!time) return status('status.badTime');
   const theme = (document.querySelector<HTMLInputElement>('input[name="theme"]:checked')?.value ?? 'auto') as ThemeMode;
+  const langSetting = (document.querySelector<HTMLInputElement>('input[name="lang"]:checked')?.value ?? 'auto') as LangSetting;
   const wantsPush = $<HTMLInputElement>('notifications').checked;
-  const next: Preferences = { flowers: [...draft.flowers], colors: [...draft.colors], time: formatTime(time), notifications: wantsPush, theme };
+  const next: Preferences = { flowers: [...draft.flowers], colors: [...draft.colors], time: formatTime(time), notifications: wantsPush, theme, lang: langSetting };
+  const nextLang = resolveLang(langSetting, navigator.language);
 
-  let pushError = '';
+  let pushError: MessageKey | null = null;
   try {
-    if (wantsPush) await enablePush(next.time, timeZone);
+    if (wantsPush) await enablePush(next.time, timeZone, nextLang);
     else if (prefs.notifications) await disablePush();
   } catch (err) {
-    pushError = err instanceof Error ? err.message : String(err);
+    pushError = err instanceof PushError ? err.key : 'push.device';
     // A failed enable leaves them off; a failed disable leaves them on.
     next.notifications = !wantsPush && prefs.notifications;
   }
 
   prefs = next;
+  lang = nextLang;
   const saved = savePreferences(storage, prefs);
+  setTimeBoxes(prefs.time);
+  applyLanguage();
   applyTheme(prefs.theme);
   renderToday(true);
-  status(pushError || (saved ? 'Preferenze salvate. Il prossimo bouquet terrà conto dei tuoi gusti.' : 'Preferenze applicate, ma questo browser non può salvarle.'));
+  status(pushError ?? (saved ? 'status.saved' : 'status.notStored'));
 }
 
 // ---- Boot ----
 
 buildForm();
+applyLanguage();
 applyTheme(prefs.theme);
 renderToday(true);
 route();
 window.addEventListener('hashchange', route);
 $('share').addEventListener('click', async () => {
-  const text = `${$('message').textContent ?? ''} — Daily Smile`;
+  const text = `${$('message').textContent ?? ''} ${t(lang, 'share.suffix')}`;
   try {
     if (navigator.share) await navigator.share({ title: 'Daily Smile', text });
     else await navigator.clipboard.writeText(text);

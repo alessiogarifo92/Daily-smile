@@ -142,14 +142,14 @@ body {
 .panel { background: var(--surface); border-radius: var(--radius); padding: 18px; display: flex; flex-direction: column; gap: 12px; }
 .time-panel { align-items: center; }
 .time-row { display: flex; align-items: center; gap: 10px; }
-.time-row input {
-  font: 700 36px 'Karla', sans-serif; font-variant-numeric: tabular-nums;
-  background: transparent; color: var(--ink); border: none; text-align: center;
-  /* Grows to fit "08:00" or "08:00 AM", whichever clock format the device uses. */
-  width: 170px; field-sizing: content; min-width: 130px; max-width: 220px;
+.time-fields { display: flex; align-items: center; gap: 4px; }
+.time-part {
+  width: 2.4ch; padding: 2px 4px; border: none; border-radius: 10px; text-align: center;
+  font: 700 46px 'Karla', sans-serif; font-variant-numeric: tabular-nums;
+  background: transparent; color: var(--ink); caret-color: var(--coral);
 }
-/* The native clock icon would clip the digits; tapping the field still opens the picker. */
-.time-row input::-webkit-calendar-picker-indicator { display: none; }
+.time-part:focus { background: color-mix(in srgb, var(--coral) 18%, transparent); outline: none; }
+.time-sep { font: 700 46px 'Karla', sans-serif; color: var(--ink); }
 .round-btn {
   flex: none; width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--muted);
   background: transparent; color: var(--ink); font-size: 24px; cursor: pointer;

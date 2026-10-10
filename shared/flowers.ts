@@ -1,26 +1,27 @@
+import { joinList, type Lang } from './i18n';
 import { createRng, hashString, pick, shuffle } from './random';
 
 export const FLOWER_TYPES = [
-  { id: 'rosa', label: 'Rose' },
-  { id: 'tulipano', label: 'Tulipani' },
-  { id: 'margherita', label: 'Margherite' },
-  { id: 'girasole', label: 'Girasoli' },
-  { id: 'peonia', label: 'Peonie' },
-  { id: 'lavanda', label: 'Lavanda' },
-  { id: 'ranuncolo', label: 'Ranuncoli' },
-  { id: 'gerbera', label: 'Gerbere' },
+  { id: 'rosa', label: 'Rose', en: 'Roses' },
+  { id: 'tulipano', label: 'Tulipani', en: 'Tulips' },
+  { id: 'margherita', label: 'Margherite', en: 'Daisies' },
+  { id: 'girasole', label: 'Girasoli', en: 'Sunflowers' },
+  { id: 'peonia', label: 'Peonie', en: 'Peonies' },
+  { id: 'lavanda', label: 'Lavanda', en: 'Lavender' },
+  { id: 'ranuncolo', label: 'Ranuncoli', en: 'Ranunculus' },
+  { id: 'gerbera', label: 'Gerbere', en: 'Gerberas' },
 ] as const;
 
 export const FLOWER_COLORS = [
-  { id: 'corallo', label: 'Corallo', hex: '#FF7A59' },
-  { id: 'sole', label: 'Giallo sole', hex: '#FFC845' },
-  { id: 'magenta', label: 'Magenta', hex: '#E0457B' },
-  { id: 'cipria', label: 'Rosa cipria', hex: '#F2B8C2' },
-  { id: 'rosso', label: 'Rosso', hex: '#C0283C' },
-  { id: 'lilla', label: 'Lilla', hex: '#A88BEB' },
-  { id: 'pesca', label: 'Pesca', hex: '#F8B98B' },
-  { id: 'panna', label: 'Bianco panna', hex: '#FFF6E5' },
-  { id: 'azzurro', label: 'Azzurro', hex: '#7FB5F0' },
+  { id: 'corallo', label: 'Corallo', en: 'Coral', hex: '#FF7A59' },
+  { id: 'sole', label: 'Giallo sole', en: 'Sunshine yellow', hex: '#FFC845' },
+  { id: 'magenta', label: 'Magenta', en: 'Magenta', hex: '#E0457B' },
+  { id: 'cipria', label: 'Rosa cipria', en: 'Powder pink', hex: '#F2B8C2' },
+  { id: 'rosso', label: 'Rosso', en: 'Red', hex: '#C0283C' },
+  { id: 'lilla', label: 'Lilla', en: 'Lilac', hex: '#A88BEB' },
+  { id: 'pesca', label: 'Pesca', en: 'Peach', hex: '#F8B98B' },
+  { id: 'panna', label: 'Bianco panna', en: 'Cream white', hex: '#FFF6E5' },
+  { id: 'azzurro', label: 'Azzurro', en: 'Sky blue', hex: '#7FB5F0' },
 ] as const;
 
 export type FlowerType = (typeof FLOWER_TYPES)[number]['id'];
@@ -37,6 +38,16 @@ export function isFlowerType(v: unknown): v is FlowerType {
 }
 export function isFlowerColor(v: unknown): v is FlowerColor {
   return typeof v === 'string' && COLOR_IDS.has(v);
+}
+
+export function flowerLabel(id: FlowerType, lang: Lang): string {
+  const f = FLOWER_TYPES.find((x) => x.id === id);
+  return f ? (lang === 'en' ? f.en : f.label) : id;
+}
+
+export function colorLabel(id: FlowerColor, lang: Lang): string {
+  const c = FLOWER_COLORS.find((x) => x.id === id);
+  return c ? (lang === 'en' ? c.en : c.label) : id;
 }
 
 export function colorHex(id: FlowerColor): string {
@@ -65,8 +76,8 @@ export interface Bouquet {
   stems: Stem[];
   wrap: string;
   ribbon: string;
-  /** Short description, e.g. "tulipani corallo, girasoli e lavanda". */
-  description: string;
+  /** Today's featured kinds and their main colour (null for flowers with a natural colour). */
+  featured: { type: FlowerType; color: FlowerColor | null }[];
 }
 
 const WRAPS = ['#F3E6D3', '#E9DCEF', '#DCE8E0', '#F5DCD3'];
@@ -125,7 +136,10 @@ export function composeBouquet(prefs: BouquetPreferences, dateKey: string): Bouq
     stems,
     wrap: pick(rng, WRAPS),
     ribbon: dayPalette[0] as string,
-    description: describe(kinds, kindColor),
+    featured: kinds.map((k) => ({
+      type: k,
+      color: NATURAL_COLORS[k] ? null : (FLOWER_COLORS.find((c) => c.hex === kindColor.get(k))?.id ?? null),
+    })),
   };
 }
 
@@ -133,13 +147,13 @@ function dedupe<T>(xs: readonly T[]): T[] {
   return [...new Set(xs)];
 }
 
-function describe(kinds: FlowerType[], kindColor: Map<FlowerType, string>): string {
-  const parts = kinds.map((k) => {
-    const label = FLOWER_TYPES.find((f) => f.id === k)?.label.toLowerCase() ?? k;
-    if (NATURAL_COLORS[k]) return label;
-    const color = FLOWER_COLORS.find((c) => c.hex === kindColor.get(k))?.label.toLowerCase();
-    return color ? `${label} ${color}` : label;
+/** "tulipani corallo, girasoli e lavanda" / "coral tulips, sunflowers and lavender". */
+export function describeBouquet(bouquet: Pick<Bouquet, 'featured'>, lang: Lang): string {
+  const parts = bouquet.featured.map(({ type, color }) => {
+    const flower = flowerLabel(type, lang).toLowerCase();
+    if (!color) return flower;
+    const c = colorLabel(color, lang).toLowerCase();
+    return lang === 'en' ? `${c} ${flower}` : `${flower} ${c}`;
   });
-  if (parts.length <= 1) return parts.join('');
-  return `${parts.slice(0, -1).join(', ')} e ${parts[parts.length - 1]}`;
+  return joinList(lang, parts);
 }

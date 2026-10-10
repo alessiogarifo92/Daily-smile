@@ -1,3 +1,5 @@
+import { t, type Lang } from './i18n';
+
 export type DayPhase = 'mattina' | 'pomeriggio' | 'sera' | 'notte';
 export type ThemeMode = 'auto' | 'chiaro' | 'scuro';
 
@@ -21,15 +23,6 @@ export function isDark(phase: DayPhase): boolean {
   return phase === 'sera' || phase === 'notte';
 }
 
-export function greetingFor(phase: DayPhase): string {
-  switch (phase) {
-    case 'mattina':
-      return 'Buongiorno';
-    case 'pomeriggio':
-      return 'Buon pomeriggio';
-    case 'sera':
-      return 'Buonasera';
-    case 'notte':
-      return 'Dolce notte';
-  }
+export function greetingFor(phase: DayPhase, lang: Lang = 'it'): string {
+  return t(lang, `greeting.${phase}`);
 }

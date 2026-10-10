@@ -1,4 +1,5 @@
 import { isValidTimeZone } from '../../shared/dates';
+import { isLang, type Lang } from '../../shared/i18n';
 import { formatTime, parseTime } from '../../shared/schedule';
 
 export interface StoredSubscription {
@@ -7,6 +8,7 @@ export interface StoredSubscription {
   auth: string;
   time: string;
   timeZone: string;
+  lang: Lang;
 }
 
 /**
@@ -58,7 +60,10 @@ export function parseSubscribeBody(body: unknown): Result<StoredSubscription> {
   const time = parseTime(b.time);
   if (!time) return { ok: false, error: 'time must be HH:MM' };
   if (typeof b.timeZone !== 'string' || !isValidTimeZone(b.timeZone)) return { ok: false, error: 'Invalid timeZone' };
-  return { ok: true, value: { endpoint: sub.endpoint as string, p256dh, auth, time: formatTime(time), timeZone: b.timeZone } };
+  // Optional for older clients, which were Italian-only.
+  if (b.lang !== undefined && !isLang(b.lang)) return { ok: false, error: 'Invalid lang' };
+  const lang: Lang = isLang(b.lang) ? b.lang : 'it';
+  return { ok: true, value: { endpoint: sub.endpoint as string, p256dh, auth, time: formatTime(time), timeZone: b.timeZone, lang } };
 }
 
 export function parseUnsubscribeBody(body: unknown): Result<string> {

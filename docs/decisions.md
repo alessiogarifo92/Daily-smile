@@ -15,5 +15,8 @@
 | Deploy | GitHub Actions (al posto di Workers Builds, che si configura solo dalla dashboard): `main` → produzione, altri branch → anteprima, smoke test sull'URL; migrazioni applicate da entrambi (solo additive); log con Observability; Node 22 | Audit pre-deploy (`release-auditor`) |
 | Sicurezza (audit pre-deploy) | Iscrizioni scartate dopo 3 fallimenti o subito se il push service le rifiuta; chiavi validate in byte; solo `application/json`; limite per IPv6 /64; 503 senza rate limiter; 413 prima di leggere body grandi; click notifica solo su questo sito | Evita che iscrizioni spazzatura ritardino quelle vere o esauriscano la quota D1 gratuita |
 | Rischio accettato | Gli URL di anteprima dei branch usano lo stesso D1 e gli stessi segreti della produzione | App hobby senza dati sensibili; build solo dei branch del repo, non dei fork |
+| Lingue | Italiano e inglese: automatica dalla lingua del telefono (it → italiano, altrimenti inglese), scelta manuale in Preferenze; la notifica usa la lingua salvata con l'iscrizione | Richiesta utente (#6) |
+| Orario | Due campi ore/minuti con tastierino numerico, sempre 24h, invece di `<input type=time>` | Su Android il campo nativo non apriva il tastierino e mostrava AM/PM (#5) |
+| Messaggi | 60 frasi originali per lingua, scritte per questo progetto (nessuna fonte esterna, nessun diritto di terzi), in `shared/messages.ts` | Controllo totale su tono e contenuti |
 
 Palette B: notte `#1F2340`, superficie `#2C3158`, carta `#FBEFE6`, inchiostro `#2A2440`, corallo `#FF7A59`, firma `#A33A5E`. Font: Caveat (titoli, messaggio), Karla (testo).

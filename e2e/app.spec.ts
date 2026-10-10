@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 test.use({ timezoneId: 'Europe/Rome', locale: 'it-IT' });
+// Every test except the English one below runs on an Italian phone.
 
 const errors: string[] = [];
 test.beforeEach(({ page }) => {
@@ -90,7 +91,8 @@ test('preferences are saved and shape the bouquet', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Corallo' })).toHaveAttribute('aria-pressed', 'false');
 
   await page.getByRole('button', { name: '15 minuti dopo' }).click();
-  await expect(page.locator('#time')).toHaveValue('08:15');
+  await expect(page.locator('#time-h')).toHaveValue('08');
+  await expect(page.locator('#time-m')).toHaveValue('15');
   await page.getByText('Chiaro', { exact: true }).click();
   await page.getByRole('button', { name: 'Salva' }).click();
   await expect(page.locator('#prefs-status')).toContainText('Preferenze salvate');
@@ -100,7 +102,8 @@ test('preferences are saved and shape the bouquet', async ({ page }) => {
   await page.getByRole('link', { name: 'Oggi' }).click();
   await expect(page.locator('#bouquet-desc')).toHaveText('Il bouquet di oggi: peonie lilla.');
   await page.getByRole('link', { name: 'Preferenze' }).click();
-  await expect(page.locator('#time')).toHaveValue('08:15');
+  await expect(page.locator('#time-h')).toHaveValue('08');
+  await expect(page.locator('#time-m')).toHaveValue('15');
   await expect(page.getByLabel('Peonie', { exact: true })).toBeChecked();
 });
 
@@ -117,4 +120,53 @@ test('notification switch is reachable and explains failures instead of crashing
     await expect(page.getByLabel('Notifica giornaliera')).not.toBeChecked();
   }
   errors.length = 0; // the failed push-service request is the expected path here
+});
+
+test('the time is typed on the numeric keypad, in 24h, and out-of-range values are fixed', async ({ page }) => {
+  await openAt(page, '2026-10-10T09:00:00+02:00', '/#/preferenze');
+  const hours = page.getByRole('textbox', { name: 'Ore' });
+  const minutes = page.getByRole('textbox', { name: 'Minuti' });
+  await expect(hours).toHaveAttribute('inputmode', 'numeric');
+  await expect(minutes).toHaveAttribute('inputmode', 'numeric');
+  await hours.click();
+  await page.keyboard.type('21'); // two digits: focus jumps to the minutes
+  await expect(minutes).toBeFocused();
+  await page.keyboard.type('7');
+  await page.getByRole('button', { name: 'Salva' }).click();
+  await expect(page.locator('#prefs-status')).toContainText('Preferenze salvate');
+  await expect(hours).toHaveValue('21');
+  await expect(minutes).toHaveValue('07');
+  await hours.fill('29');
+  await minutes.fill('x9');
+  await page.getByRole('button', { name: 'Salva' }).click();
+  await expect(hours).toHaveValue('23');
+  await expect(minutes).toHaveValue('09');
+  await minutes.fill('');
+  await page.getByRole('button', { name: 'Salva' }).click();
+  await expect(page.locator('#prefs-status')).toHaveText('Scegli un orario valido.');
+});
+
+test.describe('on an English phone', () => {
+  test.use({ locale: 'en-US' });
+
+  test('the app speaks English, and the language can be switched in Preferences', async ({ page }) => {
+    await openAt(page, '2026-10-10T08:30:00+02:00');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.locator('#greeting')).toHaveText('Good morning');
+    await expect(page.locator('#today')).toHaveText('Saturday 10 October');
+    await expect(page.locator('#bouquet-desc')).toContainText('Today’s bouquet:');
+    await expect(page.getByRole('link', { name: 'Preferences' })).toBeVisible();
+
+    await page.getByRole('link', { name: 'Preferences' }).click();
+    await expect(page.getByRole('heading', { name: 'How do you like your bouquet?' })).toBeVisible();
+    await expect(page.getByLabel('Sunflowers', { exact: true })).toBeVisible();
+    await page.getByText('Italiano', { exact: true }).click();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.locator('#prefs-status')).toContainText('Preferenze salvate');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'it');
+    await expect(page.getByRole('button', { name: 'Salva' })).toBeVisible();
+
+    await page.reload();
+    await expect(page.locator('#greeting')).toHaveText('Buongiorno');
+  });
 });

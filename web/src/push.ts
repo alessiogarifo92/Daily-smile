@@ -1,3 +1,12 @@
+import type { Lang, MessageKey } from '../../shared/i18n';
+
+/** A failure the UI shows to the user, as a translation key. */
+export class PushError extends Error {
+  constructor(readonly key: MessageKey) {
+    super(key);
+  }
+}
+
 export type PushSupport = 'supported' | 'needs-install' | 'unsupported';
 
 export function pushSupport(): PushSupport {
@@ -27,28 +36,28 @@ async function api(path: string, init?: RequestInit): Promise<Response> {
   try {
     res = await fetch(path, { ...init, headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) } });
   } catch {
-    throw new Error('Il server delle notifiche non è raggiungibile. Riprova più tardi.');
+    throw new PushError('push.unreachable');
   }
-  if (!res.ok) throw new Error(`Il server delle notifiche ha risposto con un errore (${res.status}).`);
+  if (!res.ok) throw new PushError('push.serverError');
   return res;
 }
 
 /** Asks permission, subscribes this device and registers the daily time with the server. */
-export async function enablePush(time: string, timeZone: string): Promise<void> {
+export async function enablePush(time: string, timeZone: string, lang: Lang): Promise<void> {
   const permission = await Notification.requestPermission();
-  if (permission !== 'granted') throw new Error('Le notifiche sono bloccate: puoi abilitarle dalle impostazioni del browser.');
+  if (permission !== 'granted') throw new PushError('push.blocked');
   const reg = await navigator.serviceWorker.ready;
   let sub = await reg.pushManager.getSubscription();
   if (!sub) {
     const key = (await (await api('/api/vapid-public-key')).text()).trim();
-    if (!isVapidKey(key)) throw new Error('Il server delle notifiche non ha risposto correttamente. Riprova più tardi.');
+    if (!isVapidKey(key)) throw new PushError('push.badKey');
     try {
       sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64UrlToBytes(key) });
     } catch {
-      throw new Error('Non è stato possibile attivare le notifiche su questo dispositivo.');
+      throw new PushError('push.device');
     }
   }
-  await api('/api/subscribe', { method: 'POST', body: JSON.stringify({ subscription: sub.toJSON(), time, timeZone }) });
+  await api('/api/subscribe', { method: 'POST', body: JSON.stringify({ subscription: sub.toJSON(), time, timeZone, lang }) });
 }
 
 export async function disablePush(): Promise<void> {

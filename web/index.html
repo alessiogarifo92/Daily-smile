@@ -23,16 +23,16 @@
 
       <div class="stage-wrap">
         <div id="stage" class="stage" role="img" aria-label="Il bouquet di oggi"></div>
-        <p id="stage-fallback" class="fallback" hidden>Il tuo dispositivo non mostra il 3D, ma il bouquet di oggi c’è lo stesso.</p>
+        <p id="stage-fallback" class="fallback" data-i18n="stage.fallback" hidden>Il tuo dispositivo non mostra il 3D, ma il bouquet di oggi c’è lo stesso.</p>
       </div>
 
       <article class="card" aria-labelledby="card-title">
-        <h2 id="card-title" class="card-kicker">Per te · <span id="card-date"></span></h2>
+        <h2 id="card-title" class="card-kicker"><span data-i18n="card.for">Per te</span> · <span id="card-date"></span></h2>
         <p id="message" class="message"></p>
         <p id="bouquet-desc" class="bouquet-desc"></p>
         <div class="card-foot">
-          <span class="sign">— con affetto</span>
-          <button id="share" class="icon-btn" type="button" aria-label="Condividi il messaggio">
+          <span class="sign" data-i18n="card.sign">— con affetto</span>
+          <button id="share" class="icon-btn" type="button" aria-label="Condividi il messaggio" data-i18n-aria="share.aria">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>
           </button>
         </div>
@@ -43,48 +43,61 @@
 
     <main id="view-preferenze" class="view" aria-labelledby="prefs-title" hidden>
       <header class="top">
-        <h1 id="prefs-title" class="prefs-title">Come ti piace il bouquet?</h1>
+        <h1 id="prefs-title" class="prefs-title" data-i18n="prefs.title">Come ti piace il bouquet?</h1>
       </header>
       <form id="prefs" class="prefs" novalidate>
         <section class="panel time-panel">
-          <label class="kicker" for="time">Arriva ogni giorno alle</label>
+          <span class="kicker" id="time-label" data-i18n="prefs.time">Arriva ogni giorno alle</span>
           <div class="time-row">
-            <button type="button" class="round-btn" id="time-minus" aria-label="15 minuti prima">−</button>
-            <input id="time" name="time" type="time" step="300" required>
-            <button type="button" class="round-btn" id="time-plus" aria-label="15 minuti dopo">+</button>
+            <button type="button" class="round-btn" id="time-minus" aria-label="15 minuti prima" data-i18n-aria="prefs.minus">−</button>
+            <div class="time-fields" role="group" aria-labelledby="time-label">
+              <input id="time-h" class="time-part" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" enterkeyhint="next" aria-label="Ore" data-i18n-aria="prefs.hours">
+              <span class="time-sep" aria-hidden="true">:</span>
+              <input id="time-m" class="time-part" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" enterkeyhint="done" aria-label="Minuti" data-i18n-aria="prefs.minutes">
+            </div>
+            <button type="button" class="round-btn" id="time-plus" aria-label="15 minuti dopo" data-i18n-aria="prefs.plus">+</button>
           </div>
-          <label class="switch-row"><span>Notifica giornaliera</span><input id="notifications" name="notifications" type="checkbox"></label>
+          <label class="switch-row"><span data-i18n="prefs.notify">Notifica giornaliera</span><input id="notifications" name="notifications" type="checkbox"></label>
           <p id="push-hint" class="hint" hidden></p>
-          <p class="hint">Per la notifica salviamo solo l’indirizzo push anonimo di questo browser, l’orario e il fuso orario. Spegnendola vengono cancellati. Fiori e colori restano sul tuo dispositivo.</p>
+          <p class="hint" data-i18n="prefs.privacy">Per la notifica salviamo solo l’indirizzo push anonimo di questo browser, l’orario, il fuso orario e la lingua. Spegnendola vengono cancellati. Fiori e colori restano sul tuo dispositivo.</p>
         </section>
 
         <fieldset class="group">
-          <legend class="kicker">Fiori preferiti</legend>
+          <legend class="kicker" data-i18n="prefs.flowers">Fiori preferiti</legend>
           <div id="flower-list" class="flower-list"></div>
         </fieldset>
 
         <fieldset class="group">
-          <legend class="kicker">Colori</legend>
+          <legend class="kicker" data-i18n="prefs.colors">Colori</legend>
           <div id="color-list" class="color-list"></div>
         </fieldset>
 
         <fieldset class="group">
-          <legend class="kicker">Sfondo</legend>
+          <legend class="kicker" data-i18n="prefs.background">Sfondo</legend>
           <div class="segmented" id="theme-list">
-            <label><input type="radio" name="theme" value="auto"><span>Segue l’ora</span></label>
-            <label><input type="radio" name="theme" value="chiaro"><span>Chiaro</span></label>
-            <label><input type="radio" name="theme" value="scuro"><span>Scuro</span></label>
+            <label><input type="radio" name="theme" value="auto"><span data-i18n="theme.auto">Segue l’ora</span></label>
+            <label><input type="radio" name="theme" value="chiaro"><span data-i18n="theme.chiaro">Chiaro</span></label>
+            <label><input type="radio" name="theme" value="scuro"><span data-i18n="theme.scuro">Scuro</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend class="kicker" data-i18n="prefs.language">Lingua</legend>
+          <div class="segmented" id="lang-list">
+            <label><input type="radio" name="lang" value="auto"><span data-i18n="lang.auto">Automatica</span></label>
+            <label><input type="radio" name="lang" value="it"><span lang="it">Italiano</span></label>
+            <label><input type="radio" name="lang" value="en"><span lang="en">English</span></label>
           </div>
         </fieldset>
 
         <p id="prefs-status" class="status" role="status" aria-live="polite"></p>
-        <button class="primary" type="submit">Salva</button>
+        <button class="primary" type="submit" data-i18n="prefs.save">Salva</button>
       </form>
     </main>
 
     <nav class="tabs" aria-label="Sezioni">
-      <a href="#/oggi" data-tab="oggi">Oggi</a>
-      <a href="#/preferenze" data-tab="preferenze">Preferenze</a>
+      <a href="#/oggi" data-tab="oggi" data-i18n="nav.today">Oggi</a>
+      <a href="#/preferenze" data-tab="preferenze" data-i18n="nav.prefs">Preferenze</a>
     </nav>
   </div>
   <script type="module" src="/src/main.ts"></script>

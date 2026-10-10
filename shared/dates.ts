@@ -1,3 +1,5 @@
+import type { Lang } from './i18n';
+
 export function isValidTimeZone(tz: string): boolean {
   if (typeof tz !== 'string' || tz.length === 0 || tz.length > 64) return false;
   try {
@@ -44,12 +46,18 @@ export function dayNumber(key: string): number {
   return Math.floor(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 86_400_000);
 }
 
+const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const WEEKDAYS_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
 const WEEKDAYS = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
 
-/** "sabato 10 ottobre" for a date key. */
-export function italianDate(key: string): string {
-  const n = dayNumber(key);
-  const d = new Date(n * 86_400_000);
+/** "sabato 10 ottobre" / "Saturday 10 October" for a date key. */
+export function formatDate(key: string, lang: Lang = 'it'): string {
+  const d = new Date(dayNumber(key) * 86_400_000);
+  if (lang === 'en') return `${WEEKDAYS_EN[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS_EN[d.getUTCMonth()]}`;
   return `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+}
+
+export function italianDate(key: string): string {
+  return formatDate(key, 'it');
 }

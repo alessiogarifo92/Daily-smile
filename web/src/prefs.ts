@@ -7,6 +7,7 @@ import {
   type FlowerType,
 } from '../../shared/flowers';
 import { formatTime, parseTime } from '../../shared/schedule';
+import type { LangSetting } from '../../shared/i18n';
 import type { ThemeMode } from '../../shared/theme';
 
 export interface Preferences {
@@ -16,6 +17,8 @@ export interface Preferences {
   time: string;
   notifications: boolean;
   theme: ThemeMode;
+  /** 'auto' follows the device language. */
+  lang: LangSetting;
 }
 
 export const STORAGE_KEY = 'daily-smile:prefs:v1';
@@ -27,10 +30,12 @@ export function defaultPreferences(): Preferences {
     time: '08:00',
     notifications: false,
     theme: 'auto',
+    lang: 'auto',
   };
 }
 
 const THEMES: readonly ThemeMode[] = ['auto', 'chiaro', 'scuro'];
+const LANG_SETTINGS: readonly LangSetting[] = ['auto', 'it', 'en'];
 
 /** Validates untrusted (stored) data field by field; anything invalid falls back to its default. */
 export function sanitizePreferences(raw: unknown): Preferences {
@@ -46,6 +51,7 @@ export function sanitizePreferences(raw: unknown): Preferences {
     time: time ? formatTime(time) : d.time,
     notifications: typeof r.notifications === 'boolean' ? r.notifications : d.notifications,
     theme: THEMES.includes(r.theme as ThemeMode) ? (r.theme as ThemeMode) : d.theme,
+    lang: LANG_SETTINGS.includes(r.lang as LangSetting) ? (r.lang as LangSetting) : d.lang,
   };
 }
 

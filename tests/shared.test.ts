@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { dateKey, dayNumber, isValidTimeZone, italianDate, localParts } from '../shared/dates';
-import { DEFAULT_COLORS, DEFAULT_FLOWERS, FLOWER_COLORS, colorHex, composeBouquet, isFlowerColor, isFlowerType } from '../shared/flowers';
-import { MESSAGES, messageFor } from '../shared/messages';
+import { dateKey, dayNumber, formatDate, isValidTimeZone, italianDate, localParts } from '../shared/dates';
+import { DEFAULT_COLORS, DEFAULT_FLOWERS, FLOWER_COLORS, FLOWER_TYPES, colorHex, colorLabel, composeBouquet, describeBouquet, flowerLabel, isFlowerColor, isFlowerType } from '../shared/flowers';
+import { STRINGS, isLang, joinList, langFromLocale, resolveLang, t } from '../shared/i18n';
+import { MESSAGES, MESSAGES_EN, messageFor } from '../shared/messages';
 import { createRng, hashString, pick, shuffle } from '../shared/random';
 import { formatTime, nextSendAt, parseTime, zonedToUtc } from '../shared/schedule';
 import { greetingFor, isDark, phaseForHour, resolvePhase } from '../shared/theme';
@@ -176,12 +177,16 @@ describe('composeBouquet', () => {
     const b = composeBouquet({ flowers: ['girasole'], colors: ['sole'] }, '2026-10-10');
     expect(b.stems.length).toBeGreaterThanOrEqual(11);
     expect(new Set(b.stems.map((s) => s.type))).toEqual(new Set(['girasole']));
-    expect(b.description).toBe('girasoli giallo sole');
+    expect(describeBouquet(b, 'it')).toBe('girasoli giallo sole');
+    expect(describeBouquet(b, 'en')).toBe('sunshine yellow sunflowers');
   });
   it('describes several kinds in Italian', () => {
     const b = composeBouquet({ flowers: ['rosa', 'lavanda'], colors: ['rosso'] }, '2026-10-10');
-    expect(b.description).toMatch(/ e /);
-    expect(b.description).toContain('lavanda');
+    expect(describeBouquet(b, 'it')).toMatch(/ e /);
+    expect(describeBouquet(b, 'it')).toContain('lavanda');
+    expect(describeBouquet(b, 'en')).toMatch(/ and /);
+    expect(describeBouquet(b, 'en')).toContain('lavender');
+    expect(describeBouquet(b, 'en')).not.toMatch(/ e /);
   });
   it('type guards accept only known ids', () => {
     expect(isFlowerType('rosa')).toBe(true);
@@ -189,5 +194,75 @@ describe('composeBouquet', () => {
     expect(isFlowerColor('lilla')).toBe(true);
     expect(isFlowerColor(3)).toBe(false);
     expect(colorHex(FLOWER_COLORS[0].id)).toBe(FLOWER_COLORS[0].hex);
+  });
+});
+
+describe('i18n', () => {
+  it('has every key, with the same placeholders, in both languages', () => {
+    const keys = Object.keys(STRINGS.it).sort();
+    expect(Object.keys(STRINGS.en).sort()).toEqual(keys);
+    const holes = (x: string) => (x.match(/\{\w+\}/g) ?? []).sort();
+    for (const k of keys) {
+      const key = k as keyof typeof STRINGS.it;
+      expect(STRINGS.en[key].trim(), key).not.toBe('');
+      expect(holes(STRINGS.en[key]), key).toEqual(holes(STRINGS.it[key]));
+    }
+  });
+  it('picks Italian only for Italian devices', () => {
+    expect(langFromLocale('it-IT')).toBe('it');
+    expect(langFromLocale('it')).toBe('it');
+    expect(langFromLocale('IT-ch')).toBe('it');
+    expect(langFromLocale('en-GB')).toBe('en');
+    expect(langFromLocale('de-DE')).toBe('en');
+    expect(langFromLocale('items')).toBe('en');
+    expect(langFromLocale(undefined)).toBe('en');
+    expect(langFromLocale('')).toBe('en');
+  });
+  it('lets the user override the device language', () => {
+    expect(resolveLang('auto', 'it-IT')).toBe('it');
+    expect(resolveLang('en', 'it-IT')).toBe('en');
+    expect(resolveLang('it', 'en-US')).toBe('it');
+    expect(isLang('en')).toBe(true);
+    expect(isLang('fr')).toBe(false);
+  });
+  it('fills placeholders and leaves unknown ones visible', () => {
+    expect(t('en', 'next.today', { t: '07:30' })).toBe('Next bouquet today at 07:30');
+    expect(t('it', 'next.tomorrow', { t: '08:00' })).toBe('Prossimo bouquet domani alle 08:00');
+    expect(t('en', 'stage.aria')).toBe('3D bouquet of {d}');
+  });
+  it('joins lists in each language', () => {
+    expect(joinList('en', ['a', 'b', 'c'])).toBe('a, b and c');
+    expect(joinList('it', ['a', 'b'])).toBe('a e b');
+    expect(joinList('en', ['a'])).toBe('a');
+    expect(joinList('en', [])).toBe('');
+  });
+  it('translates dates, greetings and labels', () => {
+    expect(formatDate('2026-10-10', 'en')).toBe('Saturday 10 October');
+    expect(formatDate('2026-10-10')).toBe('sabato 10 ottobre');
+    expect(greetingFor('mattina', 'en')).toBe('Good morning');
+    expect(greetingFor('notte', 'en')).toBe('Sweet dreams');
+    expect(flowerLabel('girasole', 'en')).toBe('Sunflowers');
+    expect(flowerLabel('girasole', 'it')).toBe('Girasoli');
+    expect(colorLabel('lilla', 'en')).toBe('Lilac');
+    expect(flowerLabel('cactus' as never, 'en')).toBe('cactus');
+    expect(colorLabel('nope' as never, 'it')).toBe('nope');
+    for (const f of FLOWER_TYPES) expect(f.en.length).toBeGreaterThan(0);
+    for (const c of FLOWER_COLORS) expect(c.en.length).toBeGreaterThan(0);
+  });
+  it('English messages: same rotation guarantees, all different from the Italian ones', () => {
+    expect(MESSAGES_EN.length).toBe(MESSAGES.length);
+    expect(new Set(MESSAGES_EN).size).toBe(MESSAGES_EN.length);
+    const start = dayNumber('2026-01-01');
+    const seen = new Set<string>();
+    let prev = '';
+    for (let d = 0; d < MESSAGES_EN.length; d++) {
+      const key = new Date((start + d) * 86_400_000).toISOString().slice(0, 10);
+      const m = messageFor(key, 'en');
+      expect(m).not.toBe(prev);
+      prev = m;
+      seen.add(m);
+    }
+    expect(seen.size).toBe(MESSAGES_EN.length);
+    expect(MESSAGES_EN).not.toContain(MESSAGES[0]);
   });
 });

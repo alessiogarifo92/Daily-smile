@@ -21,3 +21,15 @@ for (const [name, at, path] of shots) {
     await page.screenshot({ path: `${out}/${name}.png`, fullPage: path !== '/' });
   });
 }
+
+test.describe('english', () => {
+  test.use({ locale: 'en-US' });
+  for (const [name, path] of [['06-english-today', '/'], ['07-english-preferences', '/#/preferenze']] as const) {
+    test(name, async ({ page }) => {
+      await page.clock.setFixedTime(new Date('2026-10-10T21:45:00+02:00'));
+      await page.goto(path);
+      await page.waitForTimeout(path === '/' ? 6000 : 500);
+      await page.screenshot({ path: `${out}/${name}.png`, fullPage: path !== '/' });
+    });
+  }
+});

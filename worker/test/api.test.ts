@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_FAILURES, PUSH_BATCH, clientKey, handleApi, sendDue, webPushSender, type Env, type Sender } from '../src/app';
 import worker from '../src/index';
 import { isAllowedEndpoint, parseSubscribeBody } from '../src/validate';
+import { MESSAGES_EN } from '../../shared/messages';
 
 /** Minimal D1 stand-in backed by a real SQLite database, so the SQL itself is exercised. */
 function fakeD1(): D1Database {
@@ -77,6 +78,7 @@ describe('subscribe validation', () => {
     ['auth of the wrong size', body({ subscription: { endpoint: ENDPOINT, keys: { p256dh: body().subscription.keys.p256dh, auth: 'abcd' } } }), /auth/],
     ['bad time', body({ time: '8am' }), /HH:MM/],
     ['bad zone', body({ timeZone: 'Nowhere/Land' }), /timeZone/],
+    ['unknown lang', body({ lang: 'fr' }), /lang/],
   ])('rejects %s', (_name, input, error) => {
     const r = parseSubscribeBody(input);
     expect(r.ok).toBe(false);
@@ -150,6 +152,27 @@ describe('API', () => {
     expect(await (await worker.fetch!(req('GET', '/api/vapid-public-key') as never, { ...env, ASSETS: assets })).text()).toBe('PUBKEY');
     expect(await (await worker.fetch!(req('GET', '/') as never, { ...env, ASSETS: assets })).text()).toBe('index');
     expect((await worker.fetch!(req('GET', '/') as never, env)).status).toBe(404);
+  });
+});
+
+describe('language', () => {
+  it('defaults to Italian for older clients and stores the chosen language', async () => {
+    expect(parseSubscribeBody(body())).toMatchObject({ ok: true, value: { lang: 'it' } });
+    await handleApi(req('POST', '/api/subscribe', body({ lang: 'en' })), env);
+    const { results } = await env.DB.prepare('SELECT lang FROM subscriptions').all<{ lang: string }>();
+    expect(results).toEqual([{ lang: 'en' }]);
+  });
+  it('sends the notification in the subscriber’s language', async () => {
+    const at0700 = Date.UTC(2026, 9, 10, 5, 0);
+    const keys = body().subscription.keys;
+    await handleApi(req('POST', '/api/subscribe', body({ lang: 'en' })), env, at0700);
+    await handleApi(req('POST', '/api/subscribe', body({ subscription: { endpoint: `${ENDPOINT}-it`, keys } })), env, at0700);
+    const send = vi.fn<Sender>(async () => 201);
+    await sendDue(env, Date.UTC(2026, 9, 10, 6, 1), send);
+    const byEndpoint = Object.fromEntries(send.mock.calls.map(([s, p]) => [s.endpoint, p]));
+    expect(byEndpoint[ENDPOINT]!.title).toBe('Your bouquet for today has arrived');
+    expect(MESSAGES_EN).toContain(byEndpoint[ENDPOINT]!.body);
+    expect(byEndpoint[`${ENDPOINT}-it`]!.title).toBe('Il tuo bouquet di oggi è arrivato');
   });
 });
 
@@ -250,6 +273,7 @@ describe('webPushSender', () => {
       auth: b64url(crypto.getRandomValues(new Uint8Array(16))),
       time: '08:00',
       timeZone: 'Europe/Rome',
+      lang: 'it' as const,
     };
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 201 }));
     try {

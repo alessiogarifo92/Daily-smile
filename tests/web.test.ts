@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DOME_CENTER, DOME_RADIUS, MAX_POLAR, easeOutBack, length, normalize, placeHead } from '../web/src/composition';
 import { STORAGE_KEY, defaultPreferences, loadPreferences, sanitizePreferences, savePreferences } from '../web/src/prefs';
+import { cleanDigits, hourComplete, partsToTime, shiftTime, timeToParts } from '../web/src/timeInput';
 
 function memoryStorage(initial: Record<string, string> = {}) {
   const data = new Map(Object.entries(initial));
@@ -32,7 +33,10 @@ describe('preferences', () => {
       time: '25:00',
       notifications: 'yes',
       theme: 'neon',
+      lang: 'fr',
     });
+    expect(p.lang).toBe('auto');
+    expect(sanitizePreferences({ lang: 'en' }).lang).toBe('en');
     expect(p.flowers).toEqual(['rosa']);
     expect(p.colors).toEqual(['lilla']);
     expect(p.time).toBe('08:00');
@@ -90,5 +94,41 @@ describe('bouquet layout', () => {
     expect(Math.max(...Array.from({ length: 50 }, (_, i) => easeOutBack(i / 49)))).toBeGreaterThan(1);
     expect(easeOutBack(-3)).toBeCloseTo(0);
     expect(easeOutBack(9)).toBeCloseTo(1);
+  });
+});
+
+describe('time boxes', () => {
+  it('keep only up to two digits', () => {
+    expect(cleanDigits('0a7')).toBe('07');
+    expect(cleanDigits('123')).toBe('12');
+    expect(cleanDigits('')).toBe('');
+    expect(cleanDigits('ab')).toBe('');
+  });
+  it('turn typed parts into a valid time, clamping out-of-range values', () => {
+    expect(partsToTime('7', '5')).toEqual({ hour: 7, minute: 5 });
+    expect(partsToTime('09', '45')).toEqual({ hour: 9, minute: 45 });
+    expect(partsToTime('25', '75')).toEqual({ hour: 23, minute: 59 });
+    expect(partsToTime('00', '00')).toEqual({ hour: 0, minute: 0 });
+  });
+  it('report an incomplete time as null', () => {
+    expect(partsToTime('', '30')).toBeNull();
+    expect(partsToTime('8', '')).toBeNull();
+    expect(partsToTime('x', 'y')).toBeNull();
+  });
+  it('format back to padded parts', () => {
+    expect(timeToParts({ hour: 8, minute: 5 })).toEqual(['08', '05']);
+  });
+  it('shift across midnight both ways', () => {
+    expect(shiftTime({ hour: 23, minute: 50 }, 15)).toEqual({ hour: 0, minute: 5 });
+    expect(shiftTime({ hour: 0, minute: 5 }, -15)).toEqual({ hour: 23, minute: 50 });
+    expect(shiftTime({ hour: 8, minute: 0 }, 0)).toEqual({ hour: 8, minute: 0 });
+  });
+  it('know when the hour box is complete', () => {
+    expect(hourComplete('0')).toBe(false);
+    expect(hourComplete('1')).toBe(false);
+    expect(hourComplete('2')).toBe(false);
+    expect(hourComplete('3')).toBe(true); // no hour starts with 3x
+    expect(hourComplete('09')).toBe(true);
+    expect(hourComplete('')).toBe(false);
   });
 });
