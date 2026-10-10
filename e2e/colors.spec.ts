@@ -61,12 +61,13 @@ const RUNS = [
   ['tulipano', 'realistico', '2D tulips'],
   ['margherita', 'realistico', '2D daisies'],
   ['girasole', 'realistico', '2D sunflowers'],
+  ['gerbera', 'realistico', '2D gerberas'],
 ] as const;
 for (const [flower, style, kind] of RUNS) for (const c of FLOWER_COLORS) {
   test(`${kind} in ${c.label} look ${c.label}`, async ({ page }) => {
     // Skip the daisy's golden disc, except on yellow daisies, whose petals would be skipped with it,
-    // and the sunflower's dark brown one.
-    const got = await petalColour(page, flower, c.id, (flower === 'margherita' && c.id !== 'sole') || flower === 'girasole', style);
+    // and the sunflower's and gerbera's dark ones.
+    const got = await petalColour(page, flower, c.id, (flower === 'margherita' && c.id !== 'sole') || flower === 'girasole' || flower === 'gerbera', style);
     const target = hexToRgb(c.hex);
     const dE = deltaE(got, target);
     console.log(`${kind} ${c.id.padEnd(8)} target ${c.hex} got rgb(${got.join(',')}) ΔE ${dE.toFixed(1)}`);
