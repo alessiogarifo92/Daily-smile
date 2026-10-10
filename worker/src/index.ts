@@ -72,7 +72,7 @@ export const MAX_FAILURES = 3;
 export async function handleApi(request: Request, env: Env, now = Date.now()): Promise<Response> {
   const url = new URL(request.url);
   if (url.pathname === '/api/vapid-public-key' && request.method === 'GET') {
-    return new Response(env.VAPID_PUBLIC_KEY, { headers: { 'content-type': 'text/plain', 'cache-control': 'public, max-age=3600' } });
+    return new Response(env.VAPID_PUBLIC_KEY, { headers: { 'content-type': 'text/plain', 'cache-control': 'public, max-age=300' } });
   }
   if (url.pathname === '/api/subscribe') {
     // Fail closed: without the limiter anyone could burn the free D1 write quota.
@@ -110,11 +110,11 @@ export async function handleApi(request: Request, env: Env, now = Date.now()): P
 }
 
 /**
- * Workers Free allows 50 external subrequests and ~10 ms CPU per invocation; each push is one
- * subrequest plus encryption and a VAPID signature, so a run sends at most this many. The rest
- * stay due and go out a minute later (20/min ≈ 28,800 notifications a day).
+ * Workers Free allows ~10 ms CPU per invocation and each push costs ~3 ms (encryption plus a VAPID
+ * signature), so a run sends at most this many. The rest stay due and go out a minute later
+ * (3/min ≈ 4,300 notifications a day; raise it on the Paid plan).
  */
-export const PUSH_BATCH = 20;
+export const PUSH_BATCH = 3;
 
 /** Cron: deliver every notification that is due, then plan the next one. */
 export async function sendDue(env: Env, now = Date.now(), send: Sender = webPushSender, batch = PUSH_BATCH): Promise<{ sent: number; removed: number; failed: number }> {
@@ -160,6 +160,10 @@ export default {
     return new Response('Not found', { status: 404 });
   },
   async scheduled(_controller, env, ctx): Promise<void> {
-    ctx.waitUntil(sendDue(env).then(() => undefined));
+    ctx.waitUntil(
+      sendDue(env).then((r) => {
+        if (r.sent + r.removed + r.failed > 0) console.log('daily-smile cron', JSON.stringify(r));
+      }),
+    );
   },
 } satisfies ExportedHandler<Env>;

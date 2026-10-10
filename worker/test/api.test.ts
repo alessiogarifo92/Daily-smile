@@ -209,15 +209,15 @@ describe('daily delivery (cron)', () => {
     const { results } = await env.DB.prepare('SELECT next_send_at FROM subscriptions').all<{ next_send_at: number }>();
     expect(results.every((r) => r.next_send_at > at0801)).toBe(true);
   });
-  it('stays under the Free-plan subrequest cap and sends the rest on the next run', async () => {
+  it('stays inside the Free-plan CPU budget per run and sends the rest on the next runs', async () => {
     const keys = body().subscription.keys;
-    for (let i = 0; i < PUSH_BATCH + 5; i++) {
+    for (let i = 0; i < PUSH_BATCH + 2; i++) {
       await handleApi(req('POST', '/api/subscribe', body({ subscription: { endpoint: `${ENDPOINT}-${i}`, keys } })), env, at0700);
     }
     const send = vi.fn<Sender>(async () => 201);
     expect(await sendDue(env, at0801, send)).toEqual({ sent: PUSH_BATCH, removed: 0, failed: 0 });
-    expect(PUSH_BATCH).toBeLessThan(50);
-    expect(await sendDue(env, at0801 + 60_000, send)).toEqual({ sent: 5, removed: 0, failed: 0 });
+    expect(PUSH_BATCH * 3).toBeLessThanOrEqual(10); // ~3 ms CPU per push, 10 ms per invocation
+    expect(await sendDue(env, at0801 + 60_000, send)).toEqual({ sent: 2, removed: 0, failed: 0 });
   });
   it('scheduled() runs the delivery through waitUntil', async () => {
     const waits: Promise<unknown>[] = [];

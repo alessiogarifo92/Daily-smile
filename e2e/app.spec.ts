@@ -44,7 +44,8 @@ test('at night the app is dark and shows today’s message and a 3D bouquet', as
   await expect(page.locator('#today')).toHaveText('sabato 10 ottobre');
   await expect(page.locator('#message')).not.toBeEmpty();
   await expect(page.locator('#bouquet-desc')).toContainText('Il bouquet di oggi:');
-  await expect.poll(() => bouquetDrawn(page), { timeout: 10_000 }).toBe(true);
+  // Software WebGL on CI runners needs up to ~20 s for the first frame.
+  await expect.poll(() => bouquetDrawn(page), { timeout: 30_000 }).toBe(true);
 });
 
 test('in the morning the background is light', async ({ page }) => {

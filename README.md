@@ -22,7 +22,9 @@ Una tantum, dalla dashboard Cloudflare (https://dash.cloudflare.com):
    - Project name: `daily-smile` (deve coincidere con `name` in `worker/wrangler.toml`)
    - Build command: `npm ci && npm run build`
    - Deploy command: `npx wrangler d1 migrations apply DB --remote -c worker/wrangler.toml && npx wrangler deploy -c worker/wrangler.toml`
-   - Non-production branch deploy command: `npx wrangler versions upload -c worker/wrangler.toml`
+   - Non-production branch deploy command: `npx wrangler d1 migrations apply DB --remote -c worker/wrangler.toml && npx wrangler versions upload -c worker/wrangler.toml` (le anteprime usano lo stesso database: le migrazioni sono solo additive, quindi è sicuro)
+   - Variabile di build `NODE_VERSION` = `22` (anche in `.node-version`)
+   - Il token API che Workers Builds crea deve avere il permesso **D1 Edit** (serve per le migrazioni)
    - Production branch: `main`; abilita le build dei branch non di produzione
 3. **Segreti**: *Worker → Settings → Variables and Secrets*, tipo **Secret**: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (da `node scripts/gen-vapid.mjs`), `VAPID_SUBJECT` (`mailto:<tua email>`).
 

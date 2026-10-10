@@ -26,6 +26,10 @@ name = "SUBSCRIBE_LIMITER"
 namespace_id = "1001"
 simple = { limit = 10, period = 60 }
 
+# Logs (cron results, errors) visible in the dashboard: Worker → Observability.
+[observability]
+enabled = true
+
 # Every minute: deliver notifications that are due.
 [triggers]
 crons = ["* * * * *"]
