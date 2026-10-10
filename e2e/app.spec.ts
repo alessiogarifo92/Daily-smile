@@ -150,13 +150,13 @@ test('flower style: realistic flowers in 2D, 3D on request, and 3D for flowers w
   await expect(stage).toHaveAttribute('data-renderer', '3d', { timeout: 30_000 });
   await expect(stage.locator('canvas')).toHaveCount(1);
 
-  // Back to realistic, then add sunflowers (no sprites yet): the bouquet stays in 3D.
+  // Back to realistic, then add peonies (no sprites yet): the bouquet stays in 3D.
   await page.getByRole('link', { name: 'Preferenze' }).click();
   await page.getByText('Realistico', { exact: true }).click();
   await page.getByRole('link', { name: 'Oggi' }).click();
   await expect(stage).toHaveAttribute('data-renderer', '2d');
   await page.getByRole('link', { name: 'Preferenze' }).click();
-  await page.getByLabel('Girasoli', { exact: true }).check();
+  await page.getByLabel('Peonie', { exact: true }).check();
   await page.getByLabel('Rose', { exact: true }).uncheck();
   await page.getByRole('link', { name: 'Oggi' }).click();
   await expect(stage).toHaveAttribute('data-renderer', '3d', { timeout: 30_000 });
