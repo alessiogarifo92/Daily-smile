@@ -3,7 +3,7 @@ import { createRng } from '../../shared/random';
 import { normalize, placeHead, sub, type Vec3 } from './composition';
 
 /** Flowers that already have pre-rendered sprites (scripts/blender). The others still need 3D. */
-export const SPRITE_KINDS: ReadonlySet<FlowerType> = new Set<FlowerType>(['girasole', 'margherita', 'rosa', 'tulipano']);
+export const SPRITE_KINDS: ReadonlySet<FlowerType> = new Set<FlowerType>(['girasole', 'margherita', 'peonia', 'rosa', 'tulipano']);
 
 /** Sprite views, named after the camera elevation they were rendered from (scripts/blender/rose.py). */
 export type SpriteAngle = 'front' | 'three-quarter' | 'top';
