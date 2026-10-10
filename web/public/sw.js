@@ -66,7 +66,14 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const target = (event.notification.data && event.notification.data.url) || '/';
+  // Only ever open a page of this app, whatever the payload says.
+  let target = '/';
+  try {
+    const u = new URL((event.notification.data && event.notification.data.url) || '/', self.location.origin);
+    if (u.origin === self.location.origin) target = u.pathname + u.search + u.hash;
+  } catch {
+    target = '/';
+  }
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
       for (const w of wins) {

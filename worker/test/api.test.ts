@@ -1,13 +1,14 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import worker, { PUSH_BATCH, handleApi, sendDue, webPushSender, type Env, type Sender } from '../src/index';
+import worker, { MAX_FAILURES, PUSH_BATCH, clientKey, handleApi, sendDue, webPushSender, type Env, type Sender } from '../src/index';
 import { isAllowedEndpoint, parseSubscribeBody } from '../src/validate';
 
 /** Minimal D1 stand-in backed by a real SQLite database, so the SQL itself is exercised. */
 function fakeD1(): D1Database {
   const db = new DatabaseSync(':memory:');
-  db.exec(readFileSync(new URL('../migrations/0001_init.sql', import.meta.url), 'utf8'));
+  const dir = new URL('../migrations/', import.meta.url);
+  for (const f of readdirSync(dir).filter((n) => n.endsWith('.sql')).sort()) db.exec(readFileSync(new URL(f, dir), 'utf8'));
   const prepare = (sql: string) => {
     let params: unknown[] = [];
     // D1 numbers its parameters ?1..?n; node:sqlite understands the same syntax.
@@ -36,12 +37,13 @@ const body = (over: Record<string, unknown> = {}) => ({
   timeZone: 'Europe/Rome',
   ...over,
 });
-const req = (method: string, path: string, data?: unknown) =>
-  new Request(`https://daily-smile.example${path}`, { method, body: data === undefined ? undefined : typeof data === 'string' ? data : JSON.stringify(data) });
+const req = (method: string, path: string, data?: unknown, headers: Record<string, string> = { 'content-type': 'application/json' }) =>
+  new Request(`https://daily-smile.example${path}`, { method, headers, body: data === undefined ? undefined : typeof data === 'string' ? data : JSON.stringify(data) });
+const allowAll = { limit: async () => ({ success: true }) } as unknown as RateLimit;
 
 let env: Env;
 beforeEach(() => {
-  env = { DB: fakeD1(), VAPID_PUBLIC_KEY: 'PUBKEY', VAPID_PRIVATE_KEY: 'PRIV', VAPID_SUBJECT: 'mailto:test@example.com' };
+  env = { DB: fakeD1(), SUBSCRIBE_LIMITER: allowAll, VAPID_PUBLIC_KEY: 'PUBKEY', VAPID_PRIVATE_KEY: 'PRIV', VAPID_SUBJECT: 'mailto:test@example.com' };
 });
 
 describe('endpoint allow-list', () => {
@@ -62,7 +64,10 @@ describe('subscribe validation', () => {
     ['no object', null, /JSON object/],
     ['no subscription', { time: '08:00' }, /subscription/],
     ['bad p256dh', body({ subscription: { endpoint: ENDPOINT, keys: { p256dh: 'not base64!', auth: 'abc' } } }), /p256dh/],
-    ['bad auth', body({ subscription: { endpoint: ENDPOINT, keys: { p256dh: 'abc', auth: '' } } }), /auth/],
+    ['short p256dh (64 bytes)', body({ subscription: { endpoint: ENDPOINT, keys: { p256dh: 'B'.repeat(85), auth: 'tBHItJI5svbpez7KI4CCXg' } } }), /p256dh/],
+    ['p256dh not an uncompressed point', body({ subscription: { endpoint: ENDPOINT, keys: { p256dh: 'A'.repeat(87), auth: 'tBHItJI5svbpez7KI4CCXg' } } }), /p256dh/],
+    ['bad auth', body({ subscription: { endpoint: ENDPOINT, keys: { p256dh: body().subscription.keys.p256dh, auth: '' } } }), /auth/],
+    ['auth of the wrong size', body({ subscription: { endpoint: ENDPOINT, keys: { p256dh: body().subscription.keys.p256dh, auth: 'abcd' } } }), /auth/],
     ['bad time', body({ time: '8am' }), /HH:MM/],
     ['bad zone', body({ timeZone: 'Nowhere/Land' }), /timeZone/],
   ])('rejects %s', (_name, input, error) => {
@@ -104,11 +109,30 @@ describe('API', () => {
     const seen: string[] = [];
     let calls = 0;
     const limited: Env = { ...env, SUBSCRIBE_LIMITER: { limit: async ({ key }: { key: string }) => (seen.push(key), { success: ++calls <= 1 }) } as RateLimit };
-    const withIp = (data: unknown) => new Request('https://daily-smile.example/api/subscribe', { method: 'POST', body: JSON.stringify(data), headers: { 'cf-connecting-ip': '203.0.113.7' } });
+    const withIp = (data: unknown) => new Request('https://daily-smile.example/api/subscribe', { method: 'POST', body: JSON.stringify(data), headers: { 'cf-connecting-ip': '203.0.113.7', 'content-type': 'application/json' } });
     expect((await handleApi(withIp(body()), limited)).status).toBe(200);
     expect((await handleApi(withIp(body()), limited)).status).toBe(429);
     expect(seen).toEqual(['203.0.113.7', '203.0.113.7']);
     expect((await handleApi(req('GET', '/api/vapid-public-key'), limited)).status).toBe(200); // key endpoint is not limited
+  });
+  it('fails closed without the rate limiter', async () => {
+    const { SUBSCRIBE_LIMITER: _drop, ...noLimiter } = env;
+    expect((await handleApi(req('POST', '/api/subscribe', body()), noLimiter as Env)).status).toBe(503);
+  });
+  it('rejects non-JSON content types, so other sites cannot subscribe through their visitors', async () => {
+    expect((await handleApi(req('POST', '/api/subscribe', body(), { 'content-type': 'text/plain' }), env)).status).toBe(415);
+    expect((await handleApi(req('POST', '/api/subscribe', body(), {}), env)).status).toBe(415);
+  });
+  it('refuses declared oversized bodies before reading them', async () => {
+    const r = req('POST', '/api/subscribe', body(), { 'content-type': 'application/json', 'content-length': '999999' });
+    expect((await handleApi(r, env)).status).toBe(413);
+  });
+  it('keys IPv6 clients on their /64 and IPv4 on the address', () => {
+    expect(clientKey('203.0.113.7')).toBe('203.0.113.7');
+    expect(clientKey('2001:db8:abcd:12:1:2:3:4')).toBe('2001:db8:abcd:12::/64');
+    expect(clientKey('2001:db8:abcd:12::99')).toBe('2001:db8:abcd:12::/64');
+    expect(clientKey('2001:0DB8::1')).toBe('2001:db8:0:0::/64');
+    expect(clientKey(null)).toBe('unknown');
   });
   it('404s unknown routes and methods', async () => {
     expect((await handleApi(req('GET', '/api/nope'), env)).status).toBe(404);
@@ -146,6 +170,32 @@ describe('daily delivery (cron)', () => {
     await handleApi(req('POST', '/api/subscribe', body()), env, at0700);
     expect(await sendDue(env, at0801, async () => 410)).toEqual({ sent: 0, removed: 1, failed: 0 });
     expect((await env.DB.prepare('SELECT * FROM subscriptions').all()).results).toHaveLength(0);
+  });
+  it('drops subscriptions the push service rejects as invalid', async () => {
+    await handleApi(req('POST', '/api/subscribe', body()), env, at0700);
+    expect(await sendDue(env, at0801, async () => 403)).toEqual({ sent: 0, removed: 1, failed: 0 });
+  });
+  it('drops a subscription after repeated transient failures, but keeps it through server outages', async () => {
+    await handleApi(req('POST', '/api/subscribe', body()), env, at0700);
+    const day = 86_400_000;
+    const rows = async () => (await env.DB.prepare('SELECT failures FROM subscriptions').all<{ failures: number }>()).results;
+    // Push service down (5xx/429): never counted.
+    expect(await sendDue(env, at0801, async () => 503)).toEqual({ sent: 0, removed: 0, failed: 1 });
+    expect(await sendDue(env, at0801 + day, async () => 429)).toEqual({ sent: 0, removed: 0, failed: 1 });
+    expect(await rows()).toEqual([{ failures: 0 }]);
+    // Network/crypto errors: counted, success resets, third in a row deletes.
+    const boom = async (): Promise<number> => {
+      throw new Error('dns');
+    };
+    await sendDue(env, at0801 + 2 * day, boom);
+    await sendDue(env, at0801 + 3 * day, boom);
+    expect(await rows()).toEqual([{ failures: 2 }]);
+    await sendDue(env, at0801 + 4 * day, async () => 201);
+    expect(await rows()).toEqual([{ failures: 0 }]);
+    await sendDue(env, at0801 + 5 * day, boom);
+    await sendDue(env, at0801 + 6 * day, boom);
+    expect(await sendDue(env, at0801 + 7 * day, boom)).toEqual({ sent: 0, removed: 1, failed: 0 });
+    expect(MAX_FAILURES).toBe(3);
   });
   it('counts errors and network failures but still plans the next day', async () => {
     await handleApi(req('POST', '/api/subscribe', body()), env, at0700);
