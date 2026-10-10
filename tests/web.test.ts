@@ -165,7 +165,8 @@ describe('2D sprite bouquet', () => {
     expect(canDrawSprites(composeBouquet({ flowers: ['margherita'], colors: ['panna'] }, '2026-10-10'))).toBe(true);
     expect(canDrawSprites(composeBouquet({ flowers: ['girasole'], colors: ['azzurro'] }, '2026-10-10'))).toBe(true);
     expect(canDrawSprites(composeBouquet({ flowers: ['ranuncolo'], colors: ['azzurro'] }, '2026-10-10'))).toBe(true);
-    expect(canDrawSprites(composeBouquet({ flowers: ['peonia'], colors: ['cipria'] }, '2026-10-10'))).toBe(false);
+    expect(canDrawSprites(composeBouquet({ flowers: ['peonia'], colors: ['cipria'] }, '2026-10-10'))).toBe(true);
+    expect(canDrawSprites(composeBouquet({ flowers: ['gerbera'], colors: ['magenta'] }, '2026-10-10'))).toBe(true);
     expect(canDrawSprites({ stems: [] })).toBe(false);
     // A colour no sprite was rendered in keeps the bouquet in 3D, for palette flowers and lavender alike.
     expect(canDrawSprites({ stems: [{ ...roses(['rosso']).stems[0]!, color: '#123456' }] })).toBe(false);
@@ -177,7 +178,7 @@ describe('2D sprite bouquet', () => {
     expect(canDrawSprites({ stems: [{ ...lavender.stems[0]!, color: colorHex('rosso') }] })).toBe(false);
   });
   it('every sprite the app can ask for exists in public/flowers', () => {
-    expect([...SPRITE_KINDS].sort()).toEqual(['girasole', 'lavanda', 'margherita', 'rosa', 'tulipano']);
+    expect([...SPRITE_KINDS].sort()).toEqual(['gerbera', 'girasole', 'lavanda', 'margherita', 'peonia', 'ranuncolo', 'rosa', 'tulipano']);
     for (const kind of SPRITE_KINDS) {
       for (const c of spriteColors(kind)) {
         for (const a of ['front', 'three-quarter', 'top'] as const) {

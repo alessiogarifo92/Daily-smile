@@ -2,8 +2,8 @@ import { FLOWER_COLORS, type Bouquet, type FlowerColor, type FlowerType, type St
 import { createRng } from '../../shared/random';
 import { normalize, placeHead, sub, type Vec3 } from './composition';
 
-/** Flowers that already have pre-rendered sprites (scripts/blender). The others still need 3D. */
-export const SPRITE_KINDS: ReadonlySet<FlowerType> = new Set<FlowerType>(['girasole', 'lavanda', 'margherita', 'rosa', 'tulipano']);
+/** Flowers that have pre-rendered sprites (scripts/blender): all of them; a stem in a colour without sprites still needs 3D. */
+export const SPRITE_KINDS: ReadonlySet<FlowerType> = new Set<FlowerType>(['gerbera', 'girasole', 'lavanda', 'margherita', 'peonia', 'ranuncolo', 'rosa', 'tulipano']);
 
 /** Sprite views, named after the camera elevation they were rendered from (scripts/blender/rose.py). */
 export type SpriteAngle = 'front' | 'three-quarter' | 'top';
