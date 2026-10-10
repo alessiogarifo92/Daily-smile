@@ -164,14 +164,14 @@ describe('2D sprite bouquet', () => {
     expect(canDrawSprites(composeBouquet({ flowers: ['tulipano'], colors: ['rosso'] }, '2026-10-10'))).toBe(true);
     expect(canDrawSprites(composeBouquet({ flowers: ['margherita'], colors: ['panna'] }, '2026-10-10'))).toBe(true);
     expect(canDrawSprites(composeBouquet({ flowers: ['girasole'], colors: ['azzurro'] }, '2026-10-10'))).toBe(true);
-    expect(canDrawSprites(composeBouquet({ flowers: ['gerbera'], colors: ['magenta'] }, '2026-10-10'))).toBe(true);
-    expect(canDrawSprites(composeBouquet({ flowers: ['peonia'], colors: ['cipria'] }, '2026-10-10'))).toBe(false);
+    expect(canDrawSprites(composeBouquet({ flowers: ['peonia'], colors: ['cipria'] }, '2026-10-10'))).toBe(true);
+    expect(canDrawSprites(composeBouquet({ flowers: ['gerbera'], colors: ['cipria'] }, '2026-10-10'))).toBe(false);
     expect(canDrawSprites({ stems: [] })).toBe(false);
     // A colour outside the palette (lavender's natural purples) has no sprite.
     expect(canDrawSprites({ stems: [{ ...roses(['rosso']).stems[0]!, color: '#8E7CC3' }] })).toBe(false);
   });
   it('every sprite the app can ask for exists in public/flowers', () => {
-    expect([...SPRITE_KINDS].sort()).toEqual(['gerbera', 'girasole', 'margherita', 'rosa', 'tulipano']);
+    expect([...SPRITE_KINDS].sort()).toEqual(['girasole', 'margherita', 'peonia', 'rosa', 'tulipano']);
     for (const kind of SPRITE_KINDS) {
       for (const c of FLOWER_COLORS) {
         for (const a of ['front', 'three-quarter', 'top'] as const) {
