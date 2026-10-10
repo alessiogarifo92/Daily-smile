@@ -28,8 +28,9 @@ export function createBouquetView(container: HTMLElement): BouquetView | null {
   const software = isSoftwareRenderer(renderer);
   renderer.setPixelRatio(software ? 1 : Math.min(window.devicePixelRatio || 1, 2));
   const minFrameMs = software ? 1000 / 20 : 0;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  // Neutral (Khronos PBR) tone mapping keeps saturated petal colours true; ACES bleached reds to pink.
+  renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.toneMappingExposure = 1.45;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.domElement.setAttribute('aria-hidden', 'true');
   container.appendChild(renderer.domElement);
@@ -38,15 +39,16 @@ export function createBouquetView(container: HTMLElement): BouquetView | null {
   const pmrem = new THREE.PMREMGenerator(renderer);
   const envTexture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   scene.environment = envTexture;
-  scene.environmentIntensity = 0.55;
+  scene.environmentIntensity = 0.35;
 
-  const key = new THREE.DirectionalLight('#fff1dc', 2.2);
+  const key = new THREE.DirectionalLight('#fff8ee', 1.6);
   key.position.set(-2.5, 4, 3);
   scene.add(key);
-  const rim = new THREE.DirectionalLight('#c9d4ff', 0.9);
+  const rim = new THREE.DirectionalLight('#ffffff', 0.7);
   rim.position.set(3, 2, -3);
   scene.add(rim);
-  scene.add(new THREE.HemisphereLight('#ffffff', '#3d4a2f', 0.5));
+  // Neutral fill: a green or blue tint here turned warm petals muddy.
+  scene.add(new THREE.HemisphereLight('#ffffff', '#d8d2cc', 1.1));
 
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 50);
   camera.position.set(0, 0.9, 5.4);

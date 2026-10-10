@@ -27,8 +27,16 @@ export function petalGeometry(spec: PetalSpec, segL = 10, segW = 6): THREE.Buffe
   const positions: number[] = [];
   const colors: number[] = [];
   const indices: number[] = [];
-  const base = spec.color.clone().multiplyScalar(0.72);
-  const tip = spec.color.clone().lerp(new THREE.Color(1, 1, 1), 0.12);
+  // A touch more saturation than the swatch: lighting and tone mapping take some away.
+  const vivid = spec.color.clone().offsetHSL(0, 0.12, 0);
+  // Very bright saturated colours (sunshine yellow) hit the tone-mapping shoulder and fade
+  // towards peach: pull their luminance down a little so the hue survives.
+  const hsl = { h: 0, s: 0, l: 0 };
+  vivid.getHSL(hsl);
+  const luminance = 0.2126 * vivid.r + 0.7152 * vivid.g + 0.0722 * vivid.b;
+  if (hsl.s > 0.6 && hsl.l < 0.75 && luminance > 0.4) vivid.multiplyScalar(Math.pow(0.4 / luminance, 0.5));
+  const base = vivid.clone().multiplyScalar(0.8);
+  const tip = vivid.clone().lerp(new THREE.Color(1, 1, 1), 0.04);
   const phase = spec.rng() * Math.PI * 2;
   const c = new THREE.Color();
 
@@ -78,9 +86,12 @@ export function createMaterials(): Materials {
     petal: new THREE.MeshPhysicalMaterial({
       vertexColors: true,
       side: THREE.DoubleSide,
-      roughness: 0.62,
-      sheen: 0.9,
-      sheenRoughness: 0.55,
+      roughness: 0.7,
+      // Petals are matte: little white specular, which otherwise greys saturated colours.
+      specularIntensity: 0.25,
+      // A faint velvet edge only: a strong white sheen washed every colour out.
+      sheen: 0.2,
+      sheenRoughness: 0.6,
       sheenColor: new THREE.Color('#ffffff'),
     }),
     stem: new THREE.MeshStandardMaterial({ color: '#4E8448', roughness: 0.7 }),
