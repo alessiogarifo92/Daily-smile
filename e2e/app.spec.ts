@@ -82,7 +82,7 @@ test('preferences are saved and shape the bouquet', async ({ page }) => {
   // The last flower cannot be removed.
   await page.getByLabel('Peonie', { exact: true }).click(); // refused by the app, so not .uncheck()
   await expect(page.getByLabel('Peonie', { exact: true })).toBeChecked();
-  await expect(page.locator('#prefs-status')).toHaveText('Tieni almeno un fiore.');
+  await expect(page.locator('#pick-status')).toHaveText('Tieni almeno un fiore.');
 
   // Colours: lilac only.
   await page.getByRole('button', { name: 'Lilla' }).click();
@@ -105,6 +105,31 @@ test('preferences are saved and shape the bouquet', async ({ page }) => {
   await expect(page.locator('#time-h')).toHaveValue('08');
   await expect(page.locator('#time-m')).toHaveValue('15');
   await expect(page.getByLabel('Peonie', { exact: true })).toBeChecked();
+});
+
+test('flowers and colours save on their own and the preview follows, with realistic colours', async ({ page }) => {
+  await openAt(page, '2026-10-10T10:00:00+02:00', '/#/preferenze');
+  await expect(page.getByLabel('Colori realistici')).toBeChecked();
+  // Only sunflowers, in cream and red: with realistic colours the sunflowers come out red.
+  await page.getByLabel('Girasoli', { exact: true }).check();
+  for (const name of ['Rose', 'Tulipani', 'Ranuncoli']) await page.getByLabel(name, { exact: true }).uncheck();
+  await page.getByRole('button', { name: 'Rosso' }).click();
+  for (const name of ['Corallo', 'Giallo sole', 'Magenta']) await page.getByRole('button', { name }).click();
+  await expect(page.locator('#pick-status')).toHaveText('Salvato ✓');
+  await expect(page.locator('#prefs-preview')).toHaveText('Anteprima di oggi: girasoli rossi.');
+  // Colour names are on screen, not only in the accessible label.
+  await expect(page.locator('.swatch-name', { hasText: 'Bianco panna' })).toBeVisible();
+
+  // Realism off: the user's cream is allowed again on some day, and the choice is kept.
+  await page.getByLabel('Colori realistici').uncheck();
+  await page.reload();
+  await expect(page.getByLabel('Colori realistici')).not.toBeChecked();
+  await expect(page.getByLabel('Girasoli', { exact: true })).toBeChecked();
+  await expect(page.getByLabel('Rose', { exact: true })).not.toBeChecked();
+  // No Save pressed, yet Today shows the new bouquet.
+  await page.getByRole('link', { name: 'Oggi' }).click();
+  await expect(page.locator('#bouquet-desc')).toContainText('girasoli');
+  await expect(page.locator('#bouquet-desc')).not.toContainText('rose');
 });
 
 test('notification switch is reachable and explains failures instead of crashing', async ({ page, context }) => {
@@ -161,9 +186,8 @@ test.describe('on an English phone', () => {
     await page.getByRole('link', { name: 'Preferences' }).click();
     await expect(page.getByRole('heading', { name: 'How do you like your bouquet?' })).toBeVisible();
     await expect(page.getByLabel('Sunflowers', { exact: true })).toBeVisible();
-    await page.getByText('Italiano', { exact: true }).click();
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page.locator('#prefs-status')).toContainText('Preferenze salvate');
+    await page.getByText('Italiano', { exact: true }).click(); // applies and saves at once
+    await expect(page.locator('#pick-status')).toHaveText('Salvato ✓');
     await expect(page.locator('html')).toHaveAttribute('lang', 'it');
     await expect(page.getByRole('button', { name: 'Salva' })).toBeVisible();
 

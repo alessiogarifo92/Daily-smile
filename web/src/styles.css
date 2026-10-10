@@ -139,6 +139,7 @@ body {
 .kicker { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
 .panel { background: var(--surface); border-radius: var(--radius); padding: 18px; display: flex; flex-direction: column; gap: 12px; }
 .time-panel { align-items: center; }
+.time-panel .status { align-self: stretch; text-align: center; }
 .time-row { display: flex; align-items: center; gap: 10px; }
 .time-fields { display: flex; align-items: center; gap: 4px; }
 .time-part {
@@ -153,21 +154,56 @@ body {
   background: transparent; color: var(--ink); font-size: 24px; cursor: pointer;
 }
 .switch-row { align-self: stretch; display: flex; justify-content: space-between; align-items: center; min-height: 44px; border-top: 1px solid var(--line); padding-top: 10px; font-size: 17px; }
-.switch-row input, .flower-list input { width: 24px; height: 24px; accent-color: var(--coral); }
+/* Switch: a real checkbox drawn as a pill with a knob. */
+.switch {
+  appearance: none; flex: none; position: relative; width: 52px; height: 30px; margin: 0;
+  border-radius: 15px; background: var(--line); cursor: pointer; transition: background 0.2s;
+}
+.switch::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.3); transition: transform 0.2s;
+}
+.switch:checked { background: var(--coral); }
+.switch:checked::after { transform: translateX(22px); }
+.switch:disabled { opacity: 0.45; cursor: not-allowed; }
+.group .switch-row { margin-top: 8px; }
+.card-input { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .hint { margin: 0; font-size: 14px; color: var(--muted); align-self: stretch; }
 
 .group { border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.flower-list { display: flex; flex-direction: column; }
-.flower-list label {
-  min-height: 50px; display: flex; align-items: center; justify-content: space-between;
-  border-bottom: 1px solid var(--line); font-size: 17px; cursor: pointer;
+.flower-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; padding-top: 6px; }
+.flower-card {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  min-height: 96px; padding: 10px 6px; border-radius: 16px; border: 1.5px solid var(--line);
+  background: transparent; font-size: 15px; text-align: center; cursor: pointer; transition: background 0.15s, border-color 0.15s;
 }
-.color-list { display: flex; flex-wrap: wrap; gap: 12px; padding-top: 6px; }
+.flower-icon { display: flex; opacity: 0.55; transition: opacity 0.15s; }
+.flower-card:has(input:checked) { background: var(--surface); border-color: var(--coral); font-weight: 700; }
+.flower-card:has(input:checked) .flower-icon { opacity: 1; }
+.flower-card:has(input:checked)::after {
+  content: '✓'; position: absolute; top: 6px; right: 8px; width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 12px; background: var(--coral); color: var(--on-coral);
+}
+.flower-card:has(input:focus-visible) { outline: 2px solid var(--coral); outline-offset: 2px; }
+.color-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 12px 8px; padding-top: 6px; }
+.swatch-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .swatch {
-  width: 46px; height: 46px; border-radius: 14px; cursor: pointer;
+  position: relative; width: 48px; height: 48px; border-radius: 14px; cursor: pointer;
   border: 3px solid transparent; outline: 1px solid var(--line); outline-offset: -1px;
 }
 .swatch[aria-pressed='true'] { border-color: var(--ink); outline: none; }
+.swatch[aria-pressed='true']::after {
+  content: '✓'; position: absolute; inset: 0; display: grid; place-items: center;
+  font: 700 20px 'Karla', sans-serif; color: #fff; text-shadow: 0 1px 3px rgb(0 0 0 / 0.55);
+}
+/* Light swatches get a dark tick, or it vanishes on cream. */
+.swatch:is([data-color='panna'], [data-color='cipria'], [data-color='sole'], [data-color='pesca'])::after { color: #2a2440; text-shadow: none; }
+.swatch-name { font-size: 12px; line-height: 1.2; text-align: center; color: var(--muted); }
+.swatch-item:has([aria-pressed='true']) .swatch-name { color: var(--ink); font-weight: 700; }
+.preview { background: var(--surface); border-radius: var(--radius); padding: 14px 18px; display: flex; flex-direction: column; gap: 4px; }
+.preview-text { margin: 0; font-size: 16px; }
+.preview .status { font-size: 14px; }
+.time-panel .primary { align-self: stretch; }
 
 .segmented { display: flex; gap: 8px; padding-top: 6px; }
 .segmented label { flex: 1; }

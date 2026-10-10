@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dateKey, dayNumber, formatDate, isValidTimeZone, italianDate, localParts } from '../shared/dates';
-import { DEFAULT_COLORS, DEFAULT_FLOWERS, FLOWER_COLORS, FLOWER_TYPES, availableStyles, italianColor, styleForDay, colorHex, colorLabel, composeBouquet, describeBouquet, flowerLabel, isFlowerColor, isFlowerType } from '../shared/flowers';
+import { DEFAULT_COLORS, DEFAULT_FLOWERS, FLOWER_COLORS, FLOWER_TYPES, availableStyles, italianColor, styleForDay, colorHex, colorLabel, composeBouquet, describeBouquet, flowerLabel, isFlowerColor, isFlowerType, REAL_COLORS, fitRealColor, isRealColor } from '../shared/flowers';
 import type { FlowerColor, FlowerType } from '../shared/flowers';
 import { STRINGS, isLang, joinList, langFromLocale, resolveLang, t } from '../shared/i18n';
 import { MESSAGES, MESSAGES_EN, messageFor } from '../shared/messages';
@@ -395,5 +395,61 @@ describe('Italian colour agreement', () => {
       }
     }
     expect(describeBouquet({ featured: [{ type: 'rosa', color: 'rosso' }] }, 'it')).toBe('rose rosse');
+  });
+});
+
+describe('realistic colours', () => {
+  const dayKeys = (n: number) => {
+    const start = dayNumber('2026-01-01');
+    return Array.from({ length: n }, (_, d) => new Date((start + d) * 86_400_000).toISOString().slice(0, 10));
+  };
+  const hexToId = new Map<string, FlowerColor>(FLOWER_COLORS.map((c) => [c.hex, c.id]));
+
+  it('knows which colours each flower has in nature', () => {
+    expect(isRealColor('girasole', 'sole')).toBe(true);
+    expect(isRealColor('girasole', 'panna')).toBe(false);
+    expect(isRealColor('rosa', 'azzurro')).toBe(false);
+    expect(isRealColor('lavanda', 'azzurro')).toBe(true); // lavender keeps its own colour anyway
+    for (const colors of Object.values(REAL_COLORS)) for (const c of colors) expect(isFlowerColor(c)).toBe(true);
+    // No flower here comes in sky blue.
+    for (const colors of Object.values(REAL_COLORS)) expect(colors).not.toContain('azzurro');
+  });
+  it('fitRealColor keeps a real colour, else takes today’s, else a chosen one, else keeps the choice', () => {
+    const [sole, panna, rosso, azzurro] = (['sole', 'panna', 'rosso', 'azzurro'] as const).map(colorHex);
+    expect(fitRealColor('girasole', sole!, [panna!], [panna!])).toBe(sole);
+    expect(fitRealColor('girasole', panna!, [panna!, rosso!], [panna!, rosso!])).toBe(rosso);
+    expect(fitRealColor('girasole', panna!, [panna!], [panna!, sole!])).toBe(sole);
+    expect(fitRealColor('girasole', azzurro!, [azzurro!], [azzurro!, panna!])).toBe(azzurro);
+    expect(fitRealColor('rosa', '#123456', [], [])).toBe('#123456'); // unknown hex: left alone
+  });
+  it('sunflowers are never cream when a real colour was chosen too', () => {
+    const prefs = { flowers: ['girasole'] as FlowerType[], colors: ['panna', 'rosso'] as FlowerColor[], realistic: true };
+    for (const key of dayKeys(60)) {
+      const b = composeBouquet(prefs, key);
+      for (const s of b.stems) expect(s.color).toBe(colorHex('rosso'));
+      expect(b.featured[0]!.color).toBe('rosso');
+    }
+  });
+  it('in a mix every flower wears a colour it really has, whenever one was chosen', () => {
+    const prefs = { flowers: ['girasole', 'rosa', 'margherita', 'tulipano'] as FlowerType[], colors: ['panna', 'azzurro', 'sole', 'magenta'] as FlowerColor[], realistic: true };
+    for (const key of dayKeys(120)) {
+      const b = composeBouquet(prefs, key);
+      for (const s of b.stems) {
+        const id = hexToId.get(s.color)!;
+        const anyReal = prefs.colors.some((c) => isRealColor(s.type, c));
+        if (anyReal) expect(isRealColor(s.type, id), `${key} ${s.type} ${id}`).toBe(true);
+        expect(prefs.colors).toContain(id);
+      }
+    }
+  });
+  it('the choice wins when none of the chosen colours is real for the flower', () => {
+    const b = composeBouquet({ flowers: ['rosa'], colors: ['azzurro'], realistic: true }, '2026-10-10');
+    for (const s of b.stems) expect(s.color).toBe(colorHex('azzurro'));
+  });
+  it('turned off, bouquets are exactly what they were before', () => {
+    const base = { flowers: ['girasole', 'rosa', 'tulipano'] as FlowerType[], colors: ['panna', 'azzurro', 'corallo'] as FlowerColor[] };
+    for (const key of dayKeys(30)) {
+      expect(composeBouquet({ ...base, realistic: false }, key)).toEqual(composeBouquet(base, key));
+    }
   });
 });

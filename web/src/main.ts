@@ -6,6 +6,7 @@ import { messageFor } from '../../shared/messages';
 import { formatTime, giftDayKey, parseTime } from '../../shared/schedule';
 import { greetingFor, isDark, resolvePhase, type ThemeMode } from '../../shared/theme';
 import { createBouquetView, type BouquetView } from './bouquet3d';
+import { flowerIcon } from './flowerIcons';
 import { loadPreferences, savePreferences, type Preferences } from './prefs';
 import { PushError, disablePush, enablePush, pushSupport } from './push';
 import { cleanDigits, hourComplete, partsToTime, shiftTime, timeToParts } from './timeInput';
@@ -24,6 +25,8 @@ let prefs = loadPreferences(storage);
 let lang: Lang = resolveLang(prefs.lang, navigator.language);
 let view: BouquetView | null | undefined;
 let shownKey = '';
+/** Preferences changed while the Today tab was hidden: redraw it when it comes back. */
+let todayStale = false;
 
 /** The day whose gift is on display: it changes at the notification time when one is set. */
 function todayKey(): string {
@@ -36,10 +39,16 @@ function applyLanguage(): void {
   document.querySelectorAll<HTMLElement>('[data-i18n]').forEach((el) => (el.textContent = t(lang, el.dataset.i18n as MessageKey)));
   document.querySelectorAll<HTMLElement>('[data-i18n-aria]').forEach((el) => el.setAttribute('aria-label', t(lang, el.dataset.i18nAria as MessageKey)));
   document.querySelectorAll<HTMLElement>('input[name="flower"]').forEach((input) => {
-    const label = input.parentElement?.querySelector('span');
+    const label = input.parentElement?.querySelector('.flower-name');
     if (label) label.textContent = flowerLabel(input.getAttribute('value') as FlowerType, lang);
   });
-  document.querySelectorAll<HTMLElement>('.swatch').forEach((b) => b.setAttribute('aria-label', colorLabel(b.dataset.color as FlowerColor, lang)));
+  document.querySelectorAll<HTMLElement>('.swatch').forEach((b) => {
+    const name = colorLabel(b.dataset.color as FlowerColor, lang);
+    b.setAttribute('aria-label', name);
+    const caption = b.parentElement?.querySelector('.swatch-name');
+    if (caption) caption.textContent = name;
+  });
+  renderPreview();
   pushHint();
 }
 
@@ -95,6 +104,10 @@ function route(): void {
     if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
+  if (tab === 'oggi' && todayStale) {
+    todayStale = false;
+    renderToday(true);
+  }
   view?.setActive(tab === 'oggi');
   if (tab === 'preferenze') fillForm();
   window.scrollTo(0, 0);
@@ -114,14 +127,21 @@ function setTimeBoxes(value: string): void {
 function buildForm(): void {
   const flowerList = $('flower-list');
   for (const f of FLOWER_TYPES) {
+    // A card: a transparent checkbox covers it, so it stays a real, labelled form control.
     const label = document.createElement('label');
-    const text = document.createElement('span');
+    label.className = 'flower-card';
     const input = document.createElement('input');
     input.type = 'checkbox';
     input.name = 'flower';
     input.value = f.id;
+    input.className = 'card-input';
     input.addEventListener('change', () => toggle(draft.flowers, f.id, input, 'status.keepFlower'));
-    label.append(text, input);
+    const icon = document.createElement('span');
+    icon.className = 'flower-icon';
+    icon.innerHTML = flowerIcon(f.id);
+    const text = document.createElement('span');
+    text.className = 'flower-name';
+    label.append(input, icon, text);
     flowerList.append(label);
   }
   const colorList = $('color-list');
@@ -132,14 +152,22 @@ function buildForm(): void {
     b.dataset.color = c.id;
     b.style.background = c.hex;
     b.addEventListener('click', () => {
-      if (draft.colors.has(c.id) && draft.colors.size === 1) return status('status.keepColor');
+      if (draft.colors.has(c.id) && draft.colors.size === 1) return pickStatus('status.keepColor');
       if (draft.colors.has(c.id)) draft.colors.delete(c.id);
       else draft.colors.add(c.id);
       b.setAttribute('aria-pressed', String(draft.colors.has(c.id)));
-      status(null);
+      commitPicks();
     });
-    colorList.append(b);
+    const item = document.createElement('div');
+    item.className = 'swatch-item';
+    const caption = document.createElement('span');
+    caption.className = 'swatch-name';
+    caption.setAttribute('aria-hidden', 'true'); // the button's own label already says it
+    item.append(b, caption);
+    colorList.append(item);
   }
+  $('realistic').addEventListener('change', commitPicks);
+  document.querySelectorAll<HTMLInputElement>('input[name="theme"], input[name="lang"]').forEach((i) => i.addEventListener('change', commitPicks));
 
   // Time: two numeric boxes (numeric keypad on phones, always 24h).
   const h = hoursBox();
@@ -183,12 +211,42 @@ function pushHint(): void {
 function toggle<T>(set: Set<T>, id: T, input: HTMLInputElement, lastMsg: MessageKey): void {
   if (!input.checked && set.size === 1 && set.has(id)) {
     input.checked = true;
-    status(lastMsg);
+    pickStatus(lastMsg);
     return;
   }
   if (input.checked) set.add(id);
   else set.delete(id);
-  status(null);
+  commitPicks();
+}
+
+/**
+ * Flowers, colours, realism, background and language apply and save as soon as they change;
+ * only the time and the notification wait for the button, because they reach the push server.
+ */
+function commitPicks(): void {
+  const theme = (document.querySelector<HTMLInputElement>('input[name="theme"]:checked')?.value ?? prefs.theme) as ThemeMode;
+  const langSetting = (document.querySelector<HTMLInputElement>('input[name="lang"]:checked')?.value ?? prefs.lang) as LangSetting;
+  prefs = { ...prefs, flowers: [...draft.flowers], colors: [...draft.colors], realistic: $<HTMLInputElement>('realistic').checked, theme, lang: langSetting };
+  const saved = savePreferences(storage, prefs);
+  const nextLang = resolveLang(langSetting, navigator.language);
+  if (nextLang !== lang) {
+    lang = nextLang;
+    applyLanguage();
+  }
+  applyTheme(prefs.theme);
+  todayStale = true;
+  renderPreview();
+  pickStatus(saved ? 'status.autosaved' : 'status.notStored');
+}
+
+/** What today's bouquet looks like with the current choices. */
+function renderPreview(): void {
+  const description = describeBouquet(composeBouquet(prefs, todayKey()), lang);
+  $('prefs-preview').textContent = t(lang, 'prefs.preview', { d: description });
+}
+
+function pickStatus(key: MessageKey | null): void {
+  $('pick-status').textContent = key ? t(lang, key) : '';
 }
 
 function fillForm(): void {
@@ -198,9 +256,12 @@ function fillForm(): void {
   document.querySelectorAll<HTMLButtonElement>('.swatch').forEach((b) => b.setAttribute('aria-pressed', String(draft.colors.has(b.dataset.color as FlowerColor))));
   setTimeBoxes(prefs.time);
   $<HTMLInputElement>('notifications').checked = prefs.notifications;
+  $<HTMLInputElement>('realistic').checked = prefs.realistic;
   document.querySelectorAll<HTMLInputElement>('input[name="theme"]').forEach((i) => (i.checked = i.value === prefs.theme));
   document.querySelectorAll<HTMLInputElement>('input[name="lang"]').forEach((i) => (i.checked = i.value === prefs.lang));
   status(null);
+  pickStatus(null);
+  renderPreview();
 }
 
 function status(key: MessageKey | null): void {
@@ -210,18 +271,15 @@ function status(key: MessageKey | null): void {
 async function submit(): Promise<void> {
   const time = partsToTime(hoursBox().value, minutesBox().value);
   if (!time) return status('status.badTime');
-  const theme = (document.querySelector<HTMLInputElement>('input[name="theme"]:checked')?.value ?? 'auto') as ThemeMode;
-  const langSetting = (document.querySelector<HTMLInputElement>('input[name="lang"]:checked')?.value ?? 'auto') as LangSetting;
   const wantsPush = $<HTMLInputElement>('notifications').checked;
-  const next: Preferences = { flowers: [...draft.flowers], colors: [...draft.colors], time: formatTime(time), notifications: wantsPush, theme, lang: langSetting };
-  const nextLang = resolveLang(langSetting, navigator.language);
+  const next: Preferences = { ...prefs, time: formatTime(time), notifications: wantsPush };
   const save = document.querySelector<HTMLButtonElement>('#prefs button[type="submit"]');
   if (save) save.disabled = true;
   status('status.working');
 
   let pushError: MessageKey | null = null;
   try {
-    if (wantsPush) await enablePush(next.time, timeZone, nextLang);
+    if (wantsPush) await enablePush(next.time, timeZone, lang);
     else if (prefs.notifications) await disablePush();
   } catch (err) {
     pushError = err instanceof PushError ? err.key : 'push.device';
@@ -231,12 +289,11 @@ async function submit(): Promise<void> {
 
   if (save) save.disabled = false;
   prefs = next;
-  lang = nextLang;
   const saved = savePreferences(storage, prefs);
   setTimeBoxes(prefs.time);
-  applyLanguage();
   applyTheme(prefs.theme);
   renderToday(true);
+  renderPreview();
   status(pushError ?? (saved ? 'status.saved' : 'status.notStored'));
 }
 

@@ -60,6 +60,41 @@ const NATURAL_COLORS: Partial<Record<FlowerType, string[]>> = {
   lavanda: ['#8E7CC3', '#9D86D1', '#7E6BB5'],
 };
 
+/**
+ * Colours each flower really comes in (florist varieties included). With "realistic colours"
+ * on, a flower only wears these; sky blue and white sunflowers stay out.
+ */
+export const REAL_COLORS: Record<Exclude<FlowerType, 'lavanda'>, readonly FlowerColor[]> = {
+  rosa: ['corallo', 'sole', 'magenta', 'cipria', 'rosso', 'lilla', 'pesca', 'panna'],
+  tulipano: ['corallo', 'sole', 'magenta', 'cipria', 'rosso', 'lilla', 'pesca', 'panna'],
+  margherita: ['panna', 'cipria', 'magenta'],
+  girasole: ['sole', 'corallo', 'rosso'],
+  peonia: ['corallo', 'sole', 'magenta', 'cipria', 'rosso', 'pesca', 'panna'],
+  ranuncolo: ['corallo', 'sole', 'magenta', 'cipria', 'rosso', 'lilla', 'pesca', 'panna'],
+  gerbera: ['corallo', 'sole', 'magenta', 'cipria', 'rosso', 'pesca', 'panna'],
+};
+
+/** Whether a flower comes in that colour in nature (lavender keeps its own colour anyway). */
+export function isRealColor(type: FlowerType, color: FlowerColor): boolean {
+  return type === 'lavanda' || REAL_COLORS[type].includes(color);
+}
+
+const HEX_TO_ID = new Map<string, FlowerColor>(FLOWER_COLORS.map((c) => [c.hex, c.id]));
+
+/**
+ * A colour the flower can really have: the given one if real, else the first real one of
+ * today's colours, else of all the chosen ones. When none of the chosen colours is real for
+ * this flower, the user's choice wins and the colour stays as it is.
+ */
+export function fitRealColor(type: FlowerType, hex: string, today: readonly string[], chosen: readonly string[]): string {
+  const real = (h: string) => {
+    const id = HEX_TO_ID.get(h);
+    return id !== undefined && isRealColor(type, id);
+  };
+  if (real(hex)) return hex;
+  return today.find(real) ?? chosen.find(real) ?? hex;
+}
+
 export interface Stem {
   type: FlowerType;
   color: string;
@@ -122,6 +157,8 @@ const WRAPS = ['#F3E6D3', '#E9DCEF', '#DCE8E0', '#F5DCD3'];
 export interface BouquetPreferences {
   flowers: readonly FlowerType[];
   colors: readonly FlowerColor[];
+  /** Each flower only in colours it has in nature (off when absent). */
+  realistic?: boolean;
 }
 
 /**
@@ -145,7 +182,8 @@ export function composeBouquet(prefs: BouquetPreferences, dateKey: string): Bouq
 
   const count = 11 + Math.floor(rng() * 5); // 11..15 stems
   const kindColor = new Map<FlowerType, string>();
-  kinds.forEach((k, i) => kindColor.set(k, dayPalette[i % dayPalette.length] as string));
+  const fit = (type: FlowerType, hex: string) => (prefs.realistic ? fitRealColor(type, hex, dayPalette, palette) : hex);
+  kinds.forEach((k, i) => kindColor.set(k, fit(k, dayPalette[i % dayPalette.length] as string)));
   const spare = dayPalette.filter((hex) => ![...kindColor.entries()].some(([k, c]) => c === hex && !NATURAL_COLORS[k]));
 
   const stems: Stem[] = [];
@@ -156,10 +194,13 @@ export function composeBouquet(prefs: BouquetPreferences, dateKey: string): Bouq
     const natural = NATURAL_COLORS[type];
     // Each kind wears its own colour; colours no kind took are given to the next stems,
     // so every colour of today's style really shows up.
+    // With realistic colours, a spare colour waits for a flower that can wear it.
+    const spareAt = i >= kinds.length ? spare.findIndex((hex) => fit(type, hex) === hex) : -1;
     let color: string;
     if (natural) color = pick(rng, natural);
-    else if (i >= kinds.length && spare.length > 0) color = spare.shift() as string;
+    else if (spareAt >= 0) color = spare.splice(spareAt, 1)[0] as string;
     else color = i < kinds.length || rng() < 0.6 ? (kindColor.get(type) as string) : (dayPalette[i % dayPalette.length] as string);
+    if (!natural) color = fit(type, color);
     // Fibonacci spiral on the dome: the first stems sit near the top.
     const t = (i + 0.5) / count;
     stems.push({

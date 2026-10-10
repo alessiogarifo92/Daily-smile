@@ -34,8 +34,11 @@ describe('preferences', () => {
       notifications: 'yes',
       theme: 'neon',
       lang: 'fr',
+      realistic: 'no',
     });
     expect(p.lang).toBe('auto');
+    expect(p.realistic).toBe(true);
+    expect(sanitizePreferences({ realistic: false }).realistic).toBe(false);
     expect(sanitizePreferences({ lang: 'en' }).lang).toBe('en');
     expect(p.flowers).toEqual(['rosa']);
     expect(p.colors).toEqual(['lilla']);

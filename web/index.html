@@ -65,9 +65,11 @@
             </div>
             <button type="button" class="round-btn" id="time-plus" aria-label="15 minuti dopo" data-i18n-aria="prefs.plus">+</button>
           </div>
-          <label class="switch-row"><span data-i18n="prefs.notify">Notifica giornaliera</span><input id="notifications" name="notifications" type="checkbox"></label>
+          <label class="switch-row"><span data-i18n="prefs.notify">Notifica giornaliera</span><input id="notifications" name="notifications" type="checkbox" class="switch" role="switch"></label>
           <p id="push-hint" class="hint" hidden></p>
           <p class="hint" data-i18n="prefs.privacy">Per la notifica salviamo solo l’indirizzo push anonimo di questo browser, l’orario, il fuso orario e la lingua. Spegnendola vengono cancellati. Fiori e colori restano sul tuo dispositivo.</p>
+          <p id="prefs-status" class="status" role="status" aria-live="polite"></p>
+          <button class="primary" type="submit" data-i18n="prefs.save">Salva orario e notifica</button>
         </section>
 
         <fieldset class="group">
@@ -78,7 +80,14 @@
         <fieldset class="group">
           <legend class="kicker" data-i18n="prefs.colors">Colori</legend>
           <div id="color-list" class="color-list"></div>
+          <label class="switch-row"><span data-i18n="prefs.realistic">Colori realistici</span><input id="realistic" name="realistic" type="checkbox" class="switch" role="switch" aria-describedby="realistic-hint"></label>
+          <p id="realistic-hint" class="hint" data-i18n="prefs.realisticHint">Ogni fiore usa solo i colori che ha in natura: niente girasoli bianchi o rose azzurre.</p>
         </fieldset>
+
+        <section class="preview">
+          <p id="prefs-preview" class="preview-text"></p>
+          <p id="pick-status" class="status" role="status"></p>
+        </section>
 
         <fieldset class="group">
           <legend class="kicker" data-i18n="prefs.background">Sfondo</legend>
@@ -98,8 +107,6 @@
           </div>
         </fieldset>
 
-        <p id="prefs-status" class="status" role="status" aria-live="polite"></p>
-        <button class="primary" type="submit" data-i18n="prefs.save">Salva</button>
       </form>
     </main>
 

@@ -19,6 +19,8 @@ export interface Preferences {
   theme: ThemeMode;
   /** 'auto' follows the device language. */
   lang: LangSetting;
+  /** Each flower only in colours it has in nature. */
+  realistic: boolean;
 }
 
 export const STORAGE_KEY = 'daily-smile:prefs:v1';
@@ -31,6 +33,7 @@ export function defaultPreferences(): Preferences {
     notifications: false,
     theme: 'auto',
     lang: 'auto',
+    realistic: true,
   };
 }
 
@@ -52,6 +55,7 @@ export function sanitizePreferences(raw: unknown): Preferences {
     notifications: typeof r.notifications === 'boolean' ? r.notifications : d.notifications,
     theme: THEMES.includes(r.theme as ThemeMode) ? (r.theme as ThemeMode) : d.theme,
     lang: LANG_SETTINGS.includes(r.lang as LangSetting) ? (r.lang as LangSetting) : d.lang,
+    realistic: typeof r.realistic === 'boolean' ? r.realistic : d.realistic,
   };
 }
 
