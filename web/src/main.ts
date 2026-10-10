@@ -5,7 +5,7 @@ import { resolveLang, t, type Lang, type LangSetting, type MessageKey } from '..
 import { colorMeaning, flowerMeaning, meaningColors, todayMeanings } from '../../shared/meanings';
 import { messageFor } from '../../shared/messages';
 import { formatTime, giftDayKey, parseTime } from '../../shared/schedule';
-import { greetingFor, isDark, resolvePhase, type ThemeMode } from '../../shared/theme';
+import { greetingForHour, isDark, resolvePhase, type ThemeMode } from '../../shared/theme';
 import { createBouquet2DView } from './bouquet2d';
 import { canDrawSprites } from './sprites';
 import type { BouquetView } from './view';
@@ -59,10 +59,11 @@ function applyLanguage(): void {
 }
 
 function applyTheme(mode: ThemeMode): void {
-  const phase = resolvePhase(mode, localParts(Date.now(), timeZone).hour);
+  const hour = localParts(Date.now(), timeZone).hour;
+  const phase = resolvePhase(mode, hour);
   document.documentElement.dataset.phase = phase;
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark(phase) ? (phase === 'sera' ? '#3B2F5C' : '#1F2340') : '#F7EEE4');
-  $('greeting').textContent = greetingFor(phase, lang);
+  $('greeting').textContent = greetingForHour(hour, lang);
 }
 
 function renderToday(force = false): void {

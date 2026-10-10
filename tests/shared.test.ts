@@ -8,7 +8,7 @@ import { QUOTES_EN } from '../shared/content/messages-en';
 import { QUOTES_IT } from '../shared/content/messages-it';
 import { createRng, hashString, pick, shuffle } from '../shared/random';
 import { formatTime, giftDayKey, nextSendAt, parseTime, zonedToUtc } from '../shared/schedule';
-import { greetingFor, isDark, phaseForHour, resolvePhase } from '../shared/theme';
+import { greetingFor, greetingForHour, isDark, phaseForHour, resolvePhase } from '../shared/theme';
 
 describe('random', () => {
   it('is deterministic for a seed and stays in [0,1)', () => {
@@ -116,6 +116,14 @@ describe('theme', () => {
     expect(greetingFor('mattina')).toBe('Buongiorno');
     expect(greetingFor('pomeriggio')).toBe('Buon pomeriggio');
     expect(greetingFor('sera')).toBe('Buonasera');
+  });
+  it('greets by the clock, not by the theme', () => {
+    expect(greetingForHour(8)).toBe('Buongiorno');
+    expect(greetingForHour(15)).toBe('Buon pomeriggio');
+    expect(greetingForHour(19)).toBe('Buonasera');
+    expect(greetingForHour(23)).toBe('Dolce notte');
+    expect(greetingForHour(4, 'en')).toBe('Sweet dreams');
+    expect(() => greetingForHour(24)).toThrow(RangeError);
   });
 });
 
