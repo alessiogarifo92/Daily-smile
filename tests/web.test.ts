@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { DOME_CENTER, DOME_RADIUS, MAX_POLAR, easeOutBack, length, normalize, placeHead } from '../web/src/composition';
 import { STORAGE_KEY, defaultPreferences, loadPreferences, sanitizePreferences, savePreferences } from '../web/src/prefs';
 import { shade } from '../web/src/bouquet2d';
-import { SPRITE_KINDS, angleFor, canDrawSprites, createProjector, layoutBouquet, spriteColor, spriteUrl } from '../web/src/sprites';
-import { composeBouquet, FLOWER_COLORS } from '../shared/flowers';
+import { SPRITE_KINDS, angleFor, canDrawSprites, createProjector, layoutBouquet, spriteColor, spriteColors, spriteUrl } from '../web/src/sprites';
+import { colorHex, composeBouquet, FLOWER_COLORS, NATURAL_COLORS } from '../shared/flowers';
 import { existsSync } from 'node:fs';
 import { cleanDigits, hourComplete, partsToTime, shiftTime, timeToParts } from '../web/src/timeInput';
 
@@ -167,23 +167,39 @@ describe('2D sprite bouquet', () => {
     expect(canDrawSprites(composeBouquet({ flowers: ['ranuncolo'], colors: ['azzurro'] }, '2026-10-10'))).toBe(true);
     expect(canDrawSprites(composeBouquet({ flowers: ['peonia'], colors: ['cipria'] }, '2026-10-10'))).toBe(false);
     expect(canDrawSprites({ stems: [] })).toBe(false);
-    // A colour outside the palette (lavender's natural purples) has no sprite.
-    expect(canDrawSprites({ stems: [{ ...roses(['rosso']).stems[0]!, color: '#8E7CC3' }] })).toBe(false);
+    // A colour no sprite was rendered in keeps the bouquet in 3D, for palette flowers and lavender alike.
+    expect(canDrawSprites({ stems: [{ ...roses(['rosso']).stems[0]!, color: '#123456' }] })).toBe(false);
+    expect(canDrawSprites({ stems: [{ ...roses(['rosso']).stems[0]!, type: 'lavanda', color: '#123456' }] })).toBe(false);
+    // Lavender wears its own natural purples, never the palette.
+    const lavender = composeBouquet({ flowers: ['lavanda'], colors: ['rosso'] }, '2026-10-10');
+    expect(canDrawSprites(lavender)).toBe(true);
+    expect(canDrawSprites(composeBouquet({ flowers: ['lavanda', 'rosa'], colors: ['rosso'] }, '2026-10-10'))).toBe(true);
+    expect(canDrawSprites({ stems: [{ ...lavender.stems[0]!, color: colorHex('rosso') }] })).toBe(false);
   });
   it('every sprite the app can ask for exists in public/flowers', () => {
-    expect([...SPRITE_KINDS].sort()).toEqual(['girasole', 'margherita', 'ranuncolo', 'rosa', 'tulipano']);
+    expect([...SPRITE_KINDS].sort()).toEqual(['girasole', 'lavanda', 'margherita', 'rosa', 'tulipano']);
     for (const kind of SPRITE_KINDS) {
-      for (const c of FLOWER_COLORS) {
+      for (const c of spriteColors(kind)) {
         for (const a of ['front', 'three-quarter', 'top'] as const) {
-          const url = spriteUrl(kind, c.id, a);
+          const url = spriteUrl(kind, c, a);
           expect(existsSync(`web/public${url}`), url).toBe(true);
         }
       }
     }
   });
   it('maps colours case-insensitively and rejects unknown ones', () => {
-    expect(spriteColor('#c0283c')).toBe('rosso');
-    expect(spriteColor('#123456')).toBeNull();
+    expect(spriteColor('rosa', '#c0283c')).toBe('rosso');
+    expect(spriteColor('rosa', '#123456')).toBeNull();
+    expect(spriteColors('rosa')).toEqual(FLOWER_COLORS.map((c) => c.id));
+  });
+  it('maps lavender only to its natural shades', () => {
+    const shades = NATURAL_COLORS.lavanda ?? [];
+    expect(shades.map((h) => spriteColor('lavanda', h.toLowerCase())).sort()).toEqual(['chiara', 'media', 'scura']);
+    expect(spriteColors('lavanda').sort()).toEqual(['chiara', 'media', 'scura']);
+    // Palette colours are not lavender sprites, and lavender shades are not palette sprites.
+    expect(spriteColor('lavanda', colorHex('lilla'))).toBeNull();
+    expect(spriteColor('rosa', '#8E7CC3')).toBeNull();
+    expect(layoutBouquet(composeBouquet({ flowers: ['lavanda'], colors: ['rosso'] }, '2026-10-10'), 300, 300).heads.every((h) => ['chiara', 'media', 'scura'].includes(h.color))).toBe(true);
   });
   it('picks the view from how much the flower faces the camera', () => {
     expect(angleFor(1)).toBe('top');

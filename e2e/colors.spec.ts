@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { FLOWER_COLORS, FLOWER_TYPES } from '../shared/flowers';
+import { FLOWER_COLORS, FLOWER_TYPES, NATURAL_COLORS } from '../shared/flowers';
 
 // Renders single-colour bouquets and measures what the petals really look like on screen.
 test.use({ timezoneId: 'Europe/Rome', locale: 'it-IT' });
@@ -77,6 +77,18 @@ for (const [flower, style, kind] of RUNS) for (const c of FLOWER_COLORS) {
     expect(dE, `${c.id}: rendered rgb(${got.join(',')}) vs ${c.hex}`).toBeLessThan(25);
   });
 }
+
+// Lavender ignores the palette and mixes its three natural purples: the median of the bouquet
+// is measured against the middle shade, and must stay nearer to it than to any palette colour.
+test('2D lavender looks lavender', async ({ page }) => {
+  const shades = NATURAL_COLORS.lavanda ?? [];
+  const got = await petalColour(page, 'lavanda', 'rosso', false, 'realistico');
+  const dE = deltaE(got, hexToRgb('#8E7CC3'));
+  console.log(`2D lavender got rgb(${got.join(',')}) ΔE ${dE.toFixed(1)} (${shades.map((h) => `${h} ${deltaE(got, hexToRgb(h)).toFixed(1)}`).join(' · ')})`);
+  const nearestPalette = Math.min(...FLOWER_COLORS.map((c) => deltaE(got, hexToRgb(c.hex))));
+  expect(dE, `rendered rgb(${got.join(',')}) is nearer a palette colour`).toBeLessThan(nearestPalette);
+  expect(dE, `rendered rgb(${got.join(',')}) vs #8E7CC3`).toBeLessThan(25);
+});
 
 for (const f of FLOWER_TYPES.filter((x) => x.id !== 'lavanda')) {
   test(`${f.label} in red look red`, async ({ page }) => {

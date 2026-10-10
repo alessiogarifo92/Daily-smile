@@ -3,23 +3,42 @@ import { createRng } from '../../shared/random';
 import { normalize, placeHead, sub, type Vec3 } from './composition';
 
 /** Flowers that already have pre-rendered sprites (scripts/blender). The others still need 3D. */
-export const SPRITE_KINDS: ReadonlySet<FlowerType> = new Set<FlowerType>(['girasole', 'margherita', 'ranuncolo', 'rosa', 'tulipano']);
+export const SPRITE_KINDS: ReadonlySet<FlowerType> = new Set<FlowerType>(['girasole', 'lavanda', 'margherita', 'rosa', 'tulipano']);
 
 /** Sprite views, named after the camera elevation they were rendered from (scripts/blender/rose.py). */
 export type SpriteAngle = 'front' | 'three-quarter' | 'top';
 
-const HEX_TO_COLOR = new Map<string, FlowerColor>(FLOWER_COLORS.map((c) => [c.hex.toUpperCase(), c.id]));
+/** Shades of a flower with its own natural colours (lavender), rendered instead of the palette. */
+export type NaturalShade = 'chiara' | 'media' | 'scura';
+/** The colour part of a sprite name: a palette colour, or a natural shade. */
+export type SpriteColor = FlowerColor | NaturalShade;
 
-export function spriteColor(hex: string): FlowerColor | null {
-  return HEX_TO_COLOR.get(hex.toUpperCase()) ?? null;
+const HEX_TO_COLOR = new Map<string, SpriteColor>(FLOWER_COLORS.map((c) => [c.hex.toUpperCase(), c.id]));
+/** Hexes of NATURAL_COLORS (shared/flowers.ts) → sprite shade: these flowers never wear the palette. */
+const NATURAL_SHADES: Partial<Record<FlowerType, ReadonlyMap<string, SpriteColor>>> = {
+  lavanda: new Map<string, SpriteColor>([
+    ['#9D86D1', 'chiara'],
+    ['#8E7CC3', 'media'],
+    ['#7E6BB5', 'scura'],
+  ]),
+};
+
+/** Sprite colour of a stem: its natural shade for lavender, else its palette colour; null when none was rendered. */
+export function spriteColor(type: FlowerType, hex: string): SpriteColor | null {
+  return (NATURAL_SHADES[type] ?? HEX_TO_COLOR).get(hex.toUpperCase()) ?? null;
+}
+
+/** Every sprite colour a flower can be drawn in. */
+export function spriteColors(type: FlowerType): SpriteColor[] {
+  return [...(NATURAL_SHADES[type] ?? HEX_TO_COLOR).values()];
 }
 
 /** True when every stem of the bouquet has a sprite: only then is it drawn in 2D. */
 export function canDrawSprites(bouquet: Pick<Bouquet, 'stems'>): boolean {
-  return bouquet.stems.length > 0 && bouquet.stems.every((s) => SPRITE_KINDS.has(s.type) && spriteColor(s.color) !== null);
+  return bouquet.stems.length > 0 && bouquet.stems.every((s) => SPRITE_KINDS.has(s.type) && spriteColor(s.type, s.color) !== null);
 }
 
-export function spriteUrl(type: FlowerType, color: FlowerColor, angle: SpriteAngle): string {
+export function spriteUrl(type: FlowerType, color: SpriteColor, angle: SpriteAngle): string {
   return `/flowers/${type}-${color}-${angle}.webp`;
 }
 
@@ -65,7 +84,7 @@ export function createProjector(width: number, height: number): Projector {
 
 export interface HeadSprite {
   type: FlowerType;
-  color: FlowerColor;
+  color: SpriteColor;
   angle: SpriteAngle;
   x: number;
   y: number;
@@ -130,7 +149,7 @@ export function layoutBouquet(bouquet: Pick<Bouquet, 'stems'>, width: number, he
     const spin = (rng() - 0.5) * 0.5;
     heads.push({
       type: s.type,
-      color: spriteColor(s.color) as FlowerColor,
+      color: spriteColor(s.type, s.color) as SpriteColor,
       angle,
       x: head.x,
       y: head.y,
