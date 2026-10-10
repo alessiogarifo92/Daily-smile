@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -46,11 +46,11 @@ jobs:
           else
             echo "::notice::Deploy skipped: add the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets (see README)."
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: steps.cf.outputs.ready == 'true'
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: steps.cf.outputs.ready == 'true'
         with:
           node-version: 22

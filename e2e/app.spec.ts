@@ -52,8 +52,8 @@ test('in the morning the background is light', async ({ page }) => {
   await openAt(page, '2026-10-10T08:15:00+02:00');
   await expect(page.locator('html')).toHaveAttribute('data-phase', 'mattina');
   await expect(page.locator('#greeting')).toHaveText('Buongiorno');
-  const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  expect(bg).toBe('rgb(247, 238, 228)');
+  // Retries until the 0.6 s background transition has finished.
+  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(247, 238, 228)');
 });
 
 test('the same day gives the same bouquet, the next day a different message', async ({ page }) => {
