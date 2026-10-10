@@ -100,6 +100,8 @@ test('preferences are saved and shape the bouquet', async ({ page }) => {
 
   await page.reload();
   await page.getByRole('link', { name: 'Oggi' }).click();
+  // Light theme forced at 19:00: the background is light, the greeting still follows the clock.
+  await expect(page.locator('#greeting')).toHaveText('Buonasera');
   await expect(page.locator('#bouquet-desc')).toHaveText('Il bouquet di oggi: peonie lilla.');
   await page.getByRole('link', { name: 'Preferenze' }).click();
   await expect(page.locator('#time-h')).toHaveValue('08');

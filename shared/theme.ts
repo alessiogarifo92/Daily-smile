@@ -26,3 +26,8 @@ export function isDark(phase: DayPhase): boolean {
 export function greetingFor(phase: DayPhase, lang: Lang = 'it'): string {
   return t(lang, `greeting.${phase}`);
 }
+
+/** The greeting always follows the clock, whatever theme the user forced. */
+export function greetingForHour(hour: number, lang: Lang = 'it'): string {
+  return greetingFor(phaseForHour(hour), lang);
+}
