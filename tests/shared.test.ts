@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dateKey, dayNumber, formatDate, isValidTimeZone, italianDate, localParts } from '../shared/dates';
-import { DEFAULT_COLORS, DEFAULT_FLOWERS, FLOWER_COLORS, FLOWER_TYPES, availableStyles, styleForDay, colorHex, colorLabel, composeBouquet, describeBouquet, flowerLabel, isFlowerColor, isFlowerType } from '../shared/flowers';
+import { DEFAULT_COLORS, DEFAULT_FLOWERS, FLOWER_COLORS, FLOWER_TYPES, availableStyles, italianColor, styleForDay, colorHex, colorLabel, composeBouquet, describeBouquet, flowerLabel, isFlowerColor, isFlowerType } from '../shared/flowers';
 import type { FlowerColor, FlowerType } from '../shared/flowers';
 import { STRINGS, isLang, joinList, langFromLocale, resolveLang, t } from '../shared/i18n';
 import { MESSAGES, MESSAGES_EN, messageFor } from '../shared/messages';
@@ -374,5 +374,26 @@ describe('message library', () => {
   it('quotes show up regularly, not all in one stretch', () => {
     const firstQuote = MESSAGES.findIndex((m) => QUOTES_IT.includes(m));
     expect(firstQuote).toBeLessThan(30);
+  });
+});
+
+describe('Italian colour agreement', () => {
+  it('agrees real adjectives with the flower and leaves colour nouns alone', () => {
+    expect(italianColor('rosso', 'rosa')).toBe('rosse');
+    expect(italianColor('rosso', 'tulipano')).toBe('rossi');
+    expect(italianColor('azzurro', 'gerbera')).toBe('azzurre');
+    expect(italianColor('azzurro', 'girasole')).toBe('azzurri');
+    expect(italianColor('corallo', 'rosa')).toBe('corallo');
+    expect(italianColor('cipria', 'tulipano')).toBe('rosa cipria');
+    expect(italianColor('panna', 'margherita')).toBe('bianco panna');
+  });
+  it('never writes a masculine-singular colour after a plural flower', () => {
+    for (const f of FLOWER_TYPES) {
+      for (const c of FLOWER_COLORS) {
+        const d = describeBouquet({ featured: [{ type: f.id, color: c.id }] }, 'it');
+        expect(d, d).not.toMatch(/ (rosso|azzurro)$/);
+      }
+    }
+    expect(describeBouquet({ featured: [{ type: 'rosa', color: 'rosso' }] }, 'it')).toBe('rose rosse');
   });
 });

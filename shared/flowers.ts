@@ -189,13 +189,31 @@ function dedupe<T>(xs: readonly T[]): T[] {
   return [...new Set(xs)];
 }
 
+/** Grammatical gender of each flower's Italian plural, for colour agreement. */
+const FEMININE = new Set<FlowerType>(['rosa', 'margherita', 'peonia', 'lavanda', 'gerbera']);
+
+/**
+ * Italian colour as an adjective for a flower: true adjectives agree ("rose rosse",
+ * "tulipani azzurri"), colours that are nouns stay as they are ("rose corallo").
+ */
+export function italianColor(color: FlowerColor, flower: FlowerType): string {
+  const f = FEMININE.has(flower);
+  switch (color) {
+    case 'rosso':
+      return f ? 'rosse' : 'rossi';
+    case 'azzurro':
+      return f ? 'azzurre' : 'azzurri';
+    default:
+      return colorLabel(color, 'it').toLowerCase();
+  }
+}
+
 /** "tulipani corallo, girasoli e lavanda" / "coral tulips, sunflowers and lavender". */
 export function describeBouquet(bouquet: Pick<Bouquet, 'featured'>, lang: Lang): string {
   const parts = bouquet.featured.map(({ type, color }) => {
     const flower = flowerLabel(type, lang).toLowerCase();
     if (!color) return flower;
-    const c = colorLabel(color, lang).toLowerCase();
-    return lang === 'en' ? `${c} ${flower}` : `${flower} ${c}`;
+    return lang === 'en' ? `${colorLabel(color, 'en').toLowerCase()} ${flower}` : `${flower} ${italianColor(color, type)}`;
   });
   return joinList(lang, parts);
 }
