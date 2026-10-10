@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Daily Smile</title>
+  <meta name="description" content="Ogni giorno un messaggio gentile e un bouquet di fiori nuovo, scelto per te.">
+  <meta name="theme-color" content="#1F2340">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Daily Smile">
+</head>
+<body>
+  <div class="app" id="app">
+    <main id="view-oggi" class="view" aria-labelledby="greeting">
+      <header class="top">
+        <div class="chip"><span class="dot" aria-hidden="true"></span>Daily Smile</div>
+        <h1 id="greeting" class="greeting">Buongiorno</h1>
+        <p id="today" class="date"></p>
+      </header>
+
+      <div class="stage-wrap">
+        <div id="stage" class="stage" role="img" aria-label="Il bouquet di oggi"></div>
+        <p id="stage-fallback" class="fallback" hidden>Il tuo dispositivo non mostra il 3D, ma il bouquet di oggi c’è lo stesso.</p>
+      </div>
+
+      <article class="card" aria-labelledby="card-title">
+        <h2 id="card-title" class="card-kicker">Per te · <span id="card-date"></span></h2>
+        <p id="message" class="message"></p>
+        <p id="bouquet-desc" class="bouquet-desc"></p>
+        <div class="card-foot">
+          <span class="sign">— con affetto</span>
+          <button id="share" class="icon-btn" type="button" aria-label="Condividi il messaggio">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>
+          </button>
+        </div>
+      </article>
+
+      <p id="next" class="next"></p>
+    </main>
+
+    <main id="view-preferenze" class="view" aria-labelledby="prefs-title" hidden>
+      <header class="top">
+        <h1 id="prefs-title" class="prefs-title">Come ti piace il bouquet?</h1>
+      </header>
+      <form id="prefs" class="prefs" novalidate>
+        <section class="panel time-panel">
+          <label class="kicker" for="time">Arriva ogni giorno alle</label>
+          <div class="time-row">
+            <button type="button" class="round-btn" id="time-minus" aria-label="15 minuti prima">−</button>
+            <input id="time" name="time" type="time" step="300" required>
+            <button type="button" class="round-btn" id="time-plus" aria-label="15 minuti dopo">+</button>
+          </div>
+          <label class="switch-row"><span>Notifica giornaliera</span><input id="notifications" name="notifications" type="checkbox"></label>
+          <p id="push-hint" class="hint" hidden></p>
+        </section>
+
+        <fieldset class="group">
+          <legend class="kicker">Fiori preferiti</legend>
+          <div id="flower-list" class="flower-list"></div>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend class="kicker">Colori</legend>
+          <div id="color-list" class="color-list"></div>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend class="kicker">Sfondo</legend>
+          <div class="segmented" id="theme-list">
+            <label><input type="radio" name="theme" value="auto"><span>Segue l’ora</span></label>
+            <label><input type="radio" name="theme" value="chiaro"><span>Chiaro</span></label>
+            <label><input type="radio" name="theme" value="scuro"><span>Scuro</span></label>
+          </div>
+        </fieldset>
+
+        <p id="prefs-status" class="status" role="status" aria-live="polite"></p>
+        <button class="primary" type="submit">Salva</button>
+      </form>
+    </main>
+
+    <nav class="tabs" aria-label="Sezioni">
+      <a href="#/oggi" data-tab="oggi">Oggi</a>
+      <a href="#/preferenze" data-tab="preferenze">Preferenze</a>
+    </nav>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

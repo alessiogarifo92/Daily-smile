@@ -1,0 +1,61 @@
+export type PushSupport = 'supported' | 'needs-install' | 'unsupported';
+
+export function pushSupport(): PushSupport {
+  const nav = navigator as Navigator & { standalone?: boolean };
+  const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = window.matchMedia?.('(display-mode: standalone)').matches || nav.standalone === true;
+  if (isIos && !standalone) return 'needs-install';
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return 'unsupported';
+  return 'supported';
+}
+
+/** An uncompressed P-256 public key: 65 bytes, 87 base64url characters. */
+export function isVapidKey(value: string): boolean {
+  return /^[A-Za-z0-9_-]{87}$/.test(value);
+}
+
+export function base64UrlToBytes(value: string): Uint8Array<ArrayBuffer> {
+  const padded = value.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (value.length % 4)) % 4);
+  const raw = atob(padded);
+  const out = new Uint8Array(new ArrayBuffer(raw.length));
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+async function api(path: string, init?: RequestInit): Promise<Response> {
+  let res: Response;
+  try {
+    res = await fetch(path, { ...init, headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) } });
+  } catch {
+    throw new Error('Il server delle notifiche non è raggiungibile. Riprova più tardi.');
+  }
+  if (!res.ok) throw new Error(`Il server delle notifiche ha risposto con un errore (${res.status}).`);
+  return res;
+}
+
+/** Asks permission, subscribes this device and registers the daily time with the server. */
+export async function enablePush(time: string, timeZone: string): Promise<void> {
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') throw new Error('Le notifiche sono bloccate: puoi abilitarle dalle impostazioni del browser.');
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    const key = (await (await api('/api/vapid-public-key')).text()).trim();
+    if (!isVapidKey(key)) throw new Error('Il server delle notifiche non ha risposto correttamente. Riprova più tardi.');
+    try {
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64UrlToBytes(key) });
+    } catch {
+      throw new Error('Non è stato possibile attivare le notifiche su questo dispositivo.');
+    }
+  }
+  await api('/api/subscribe', { method: 'POST', body: JSON.stringify({ subscription: sub.toJSON(), time, timeZone }) });
+}
+
+export async function disablePush(): Promise<void> {
+  if (!('serviceWorker' in navigator)) return;
+  const reg = await navigator.serviceWorker.getRegistration();
+  const sub = await reg?.pushManager.getSubscription();
+  if (!sub) return;
+  await api('/api/subscribe', { method: 'DELETE', body: JSON.stringify({ endpoint: sub.endpoint }) });
+  await sub.unsubscribe();
+}

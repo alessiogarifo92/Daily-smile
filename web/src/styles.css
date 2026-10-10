@@ -1,0 +1,205 @@
+@import '@fontsource/caveat/latin-500.css';
+@import '@fontsource/caveat/latin-700.css';
+@import '@fontsource/karla/latin-400.css';
+@import '@fontsource/karla/latin-700.css';
+
+:root {
+  --paper: #fbefe6;
+  --paper-ink: #2a2440;
+  --paper-muted: #6b6280;
+  --coral: #ff7a59;
+  --on-coral: #1f2340;
+  --sign: #a33a5e;
+  --radius: 20px;
+  color-scheme: light;
+}
+
+/* Phase of the day: set on <html data-phase="..."> from the clock or the user's override. */
+:root[data-phase='mattina'] {
+  --bg: #f7eee4;
+  --surface: #ffffff;
+  --ink: #2a2440;
+  --muted: #625a77;
+  --line: #e6d9cb;
+  --card-shadow: 0 18px 40px rgb(42 36 64 / 0.12);
+}
+:root[data-phase='pomeriggio'] {
+  --bg: #f2e2d2;
+  --surface: #fff9f3;
+  --ink: #2a2440;
+  --muted: #625a77;
+  --line: #e2cfbd;
+  --card-shadow: 0 18px 40px rgb(42 36 64 / 0.14);
+}
+:root[data-phase='sera'] {
+  --bg: #3b2f5c;
+  --surface: #4a3d70;
+  --ink: #fbefe6;
+  --muted: #d4cbe9;
+  --line: #5a4c82;
+  --card-shadow: 0 18px 40px rgb(0 0 0 / 0.3);
+  color-scheme: dark;
+}
+:root[data-phase='notte'] {
+  --bg: #1f2340;
+  --surface: #2c3158;
+  --ink: #fbefe6;
+  --muted: #b9bde0;
+  --line: #343a66;
+  --card-shadow: 0 18px 40px rgb(0 0 0 / 0.35);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+/* Focused or scrolled-to controls never hide behind the fixed tab bar. */
+html { scroll-padding-bottom: 96px; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Karla', system-ui, sans-serif;
+  font-size: 16px;
+  transition: background-color 0.6s ease, color 0.6s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) 16px 0;
+  position: relative;
+}
+
+/* A few stars after sunset. */
+:root[data-phase='notte'] .app::before,
+:root[data-phase='sera'] .app::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 340px;
+  pointer-events: none;
+  background:
+    radial-gradient(1.5px 1.5px at 12% 18%, #ffc845 50%, transparent 51%),
+    radial-gradient(2px 2px at 82% 12%, #ffc845 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 90% 38%, #fbefe6 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 6% 46%, #fbefe6 50%, transparent 51%),
+    radial-gradient(2px 2px at 68% 4%, #fbefe6 50%, transparent 51%);
+  opacity: 0.8;
+}
+
+.view { flex: 1; display: flex; flex-direction: column; padding-bottom: 96px; }
+.view[hidden] { display: none; }
+
+.top { padding-top: 28px; display: flex; flex-direction: column; gap: 6px; position: relative; z-index: 1; }
+.chip {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 32px; padding: 0 14px; border-radius: 16px;
+  background: var(--surface); color: var(--ink);
+  font-weight: 700; font-size: 14px;
+}
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--coral); }
+.greeting { margin: 6px 0 0; font-family: 'Caveat', cursive; font-weight: 700; font-size: 46px; line-height: 1; }
+.date { margin: 0; color: var(--muted); font-size: 15px; }
+.date::first-letter { text-transform: uppercase; }
+
+.stage-wrap { position: relative; margin: 0 -16px; }
+.stage { width: 100%; height: min(48vh, 420px); min-height: 300px; touch-action: pan-y; }
+.stage canvas { display: block; width: 100%; height: 100%; }
+.fallback { position: absolute; inset: 40% 24px auto; text-align: center; color: var(--muted); }
+
+.card {
+  position: relative;
+  margin-top: -36px;
+  background: var(--paper);
+  color: var(--paper-ink);
+  border-radius: 8px;
+  padding: 26px 24px 18px;
+  box-shadow: var(--card-shadow);
+  display: flex; flex-direction: column; gap: 12px;
+  animation: card-in 0.9s 0.5s both cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes card-in { from { transform: translateY(24px) rotate(-1.5deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.card-kicker { margin: 0; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--paper-muted); font-weight: 700; }
+.message { margin: 0; font-family: 'Caveat', cursive; font-weight: 500; font-size: 31px; line-height: 1.12; }
+.bouquet-desc { margin: 0; font-size: 14px; color: var(--paper-muted); }
+.card-foot { display: flex; align-items: center; justify-content: space-between; }
+.sign { font-family: 'Caveat', cursive; font-size: 24px; color: var(--sign); }
+.icon-btn {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 1.5px solid var(--paper-ink); background: transparent; color: var(--paper-ink);
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.next { text-align: center; color: var(--muted); font-size: 15px; margin: 18px 0 0; }
+.next a { color: var(--ink); font-weight: 700; }
+
+.prefs-title { margin: 6px 0 0; font-family: 'Caveat', cursive; font-weight: 700; font-size: 44px; line-height: 1; }
+.prefs { display: flex; flex-direction: column; gap: 22px; margin-top: 20px; }
+.kicker { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.panel { background: var(--surface); border-radius: var(--radius); padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.time-panel { align-items: center; }
+.time-row { display: flex; align-items: center; gap: 14px; }
+.time-row input {
+  font: 700 46px 'Karla', sans-serif; font-variant-numeric: tabular-nums;
+  background: transparent; color: var(--ink); border: none; text-align: center; width: 170px;
+}
+.round-btn {
+  width: 48px; height: 48px; border-radius: 50%; border: 1.5px solid var(--muted);
+  background: transparent; color: var(--ink); font-size: 24px; cursor: pointer;
+}
+.switch-row { align-self: stretch; display: flex; justify-content: space-between; align-items: center; min-height: 44px; border-top: 1px solid var(--line); padding-top: 10px; font-size: 17px; }
+.switch-row input, .flower-list input { width: 24px; height: 24px; accent-color: var(--coral); }
+.hint { margin: 0; font-size: 14px; color: var(--muted); align-self: stretch; }
+
+.group { border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.flower-list { display: flex; flex-direction: column; }
+.flower-list label {
+  min-height: 50px; display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--line); font-size: 17px; cursor: pointer;
+}
+.color-list { display: flex; flex-wrap: wrap; gap: 12px; padding-top: 6px; }
+.swatch {
+  width: 46px; height: 46px; border-radius: 14px; cursor: pointer;
+  border: 3px solid transparent; outline: 1px solid var(--line); outline-offset: -1px;
+}
+.swatch[aria-pressed='true'] { border-color: var(--ink); outline: none; }
+
+.segmented { display: flex; gap: 8px; padding-top: 6px; }
+.segmented label { flex: 1; }
+.segmented input { position: absolute; opacity: 0; pointer-events: none; }
+.segmented span {
+  display: flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 12px;
+  border: 1.5px solid var(--line); font-size: 15px; cursor: pointer; text-align: center; padding: 0 6px;
+}
+.segmented input:checked + span { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 700; }
+.segmented input:focus-visible + span { outline: 2px solid var(--coral); outline-offset: 2px; }
+
+.status { min-height: 1.4em; margin: 0; font-size: 15px; color: var(--muted); }
+.primary {
+  height: 54px; border-radius: 14px; border: none; cursor: pointer;
+  background: var(--coral); color: var(--on-coral); font: 700 17px 'Karla', sans-serif;
+}
+
+.tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  display: flex; justify-content: center; gap: 8px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--line);
+}
+.tabs a {
+  flex: 0 1 200px; min-height: 44px; display: flex; align-items: center; justify-content: center;
+  border-radius: 12px; text-decoration: none; color: var(--muted); font-weight: 700;
+}
+.tabs a[aria-current='page'] { color: var(--ink); background: var(--surface); }
+
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--coral); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card { animation: none; }
+  body { transition: none; }
+}
