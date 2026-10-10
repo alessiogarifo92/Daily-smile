@@ -1,7 +1,8 @@
 name: CI
 on:
+  # Public repo: standard-runner minutes are free, so every branch push is checked.
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
 
 jobs:

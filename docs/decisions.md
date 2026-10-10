@@ -10,6 +10,7 @@
 | 3.5 Design | Direzione **B · Biglietto notturno** (canvas https://claude.ai/artifact/3uE4FdQ9569TMbhCKq51TQ) | Scelta utente |
 | 3.5 Fiori | Fiori **3D procedurali** (three.js) invece di modelli scaricati | I modelli realistici open source pesano MB, sono spesso CC-BY e non sono ricolorabili; quelli procedurali seguono i colori scelti e non hanno vincoli di licenza |
 | 3.5 Tema | Sfondo automatico per ora di accesso: mattina 5–12 chiaro, pomeriggio 12–18 chiaro caldo, sera 18–21 tramonto, notte 21–5 blu notte; override Chiaro/Scuro | Richiesta utente |
-| Test | `npm run verify` locale prima di ogni push; CI esegue lo stesso comando | Repo privato: minuti Actions limitati (regola globale in `test-verification`) |
+| Test | `npm run verify` locale prima di ogni push; CI esegue lo stesso comando su ogni push e PR | Repo reso pubblico: minuti Actions gratuiti; se tornasse privato vale la regola globale in `test-verification` |
+| Worker | Al massimo 45 notifiche per esecuzione del cron, le altre il minuto dopo | Piano Free: 50 subrequest esterne per invocazione |
 
 Palette B: notte `#1F2340`, superficie `#2C3158`, carta `#FBEFE6`, inchiostro `#2A2440`, corallo `#FF7A59`, firma `#A33A5E`. Font: Caveat (titoli, messaggio), Karla (testo).

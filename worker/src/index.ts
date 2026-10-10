@@ -75,8 +75,14 @@ export async function handleApi(request: Request, env: Env, now = Date.now()): P
   return json({ error: 'Not found' }, 404);
 }
 
+/**
+ * Workers Free allows 50 external subrequests per invocation and each push is one,
+ * so a run sends at most this many; the rest stay due and go out a minute later.
+ */
+export const PUSH_BATCH = 45;
+
 /** Cron: deliver every notification that is due, then plan the next one. */
-export async function sendDue(env: Env, now = Date.now(), send: Sender = webPushSender, batch = 200): Promise<{ sent: number; removed: number; failed: number }> {
+export async function sendDue(env: Env, now = Date.now(), send: Sender = webPushSender, batch = PUSH_BATCH): Promise<{ sent: number; removed: number; failed: number }> {
   const { results } = await env.DB.prepare('SELECT endpoint, p256dh, auth, time, time_zone, next_send_at FROM subscriptions WHERE next_send_at <= ?1 ORDER BY next_send_at LIMIT ?2')
     .bind(now, batch)
     .all<Row>();

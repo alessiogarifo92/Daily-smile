@@ -22,6 +22,6 @@ PWA (phone + browser) that every day shows a kind message and a procedurally gen
 - Decisions: `docs/decisions.md`.
 
 ## Verification (gate before every push)
-`npm run verify` = typecheck + unit tests with coverage thresholds + build + Playwright e2e. Run it and read its output before every push; CI runs the same command. The repo is private, so GitHub Actions minutes are finite: if CI cannot start for billing/minutes, follow `test-verification` § "Local verification is the push gate" (run locally, record the evidence on the PR, never disable the workflow).
+`npm run verify` = typecheck + unit tests with coverage thresholds + build + Playwright e2e. Run it and read its output before every push; CI runs the same command on every branch push and PR. The repo is public, so standard-runner Actions minutes are free; if it ever goes private again and CI cannot start for billing/minutes, follow `test-verification` § "Local verification is the push gate" (run locally, record the evidence on the PR, never disable the workflow).
 
 In the cloud container Chromium is at `/opt/pw-browsers/chromium`; `playwright.config.ts` picks it up automatically. WebGL there is software-rendered (SwiftShader), hence the generous e2e timeout.
