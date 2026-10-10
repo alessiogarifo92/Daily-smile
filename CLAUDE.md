@@ -8,9 +8,9 @@ This project relies on the private repo `alessiogarifo92/claude-skills` (skills,
    Claude Code detects agent files added to an existing `~/.claude/agents/` without a restart, but not when that directory did not exist at session start (typical in a fresh container). Then either restart the session once, or use the fallback above for this session. `templates/session-start-hook.sh` can install everything before the session starts (best effort).
 4. If the attach fails, say so in visible text and ask the user how to proceed. Never continue silently without the rules.
 
-Run / preview (manual gate): `cd /home/user/Daily-smile && npm run build && npm run preview` → http://localhost:4173 (PWA only; push needs the Worker). Full stack locally: `npm run build && npx wrangler dev -c worker/wrangler.toml` (needs `worker/.dev.vars`, see README). No per-PR preview deploy yet: in a remote session the gate is parked with screenshots in `docs/test-evidence/` plus these local commands.
+Run / preview (manual gate): `cd /home/user/Daily-smile && npm run build && npm run preview` → http://localhost:4173 (PWA only; push needs the Worker). Full stack locally: `npm run build && npx wrangler dev -c worker/wrangler.toml` (needs `worker/.dev.vars`, see README). Once Workers Builds is connected, every non-production branch gets a preview URL (Cloudflare dashboard → Worker → Deployments, or the check Cloudflare posts on the commit): use it for the manual gate.
 
-Needed environment variables / connectors for this project: Worker secrets `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (generate with `node scripts/gen-vapid.mjs`), var `VAPID_SUBJECT` (mailto:) in `worker/wrangler.toml`, D1 database id. No `.mcp.json`.
+Needed environment variables / connectors for this project: Worker secrets `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (generate with `node scripts/gen-vapid.mjs`), `VAPID_SUBJECT` (mailto:), all set in the Cloudflare dashboard; D1 `database_id` in `worker/wrangler.toml`. Deploy: Cloudflare Workers Builds (production = `main`, other branches get preview URLs); settings in README. No `.mcp.json`.
 
 ## Project: Daily Smile
 

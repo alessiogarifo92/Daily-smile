@@ -11,21 +11,23 @@ npm run dev                    # http://localhost:5173 (solo interfaccia)
 npm run verify                 # typecheck + unit test + build + e2e (obbligatorio prima di ogni push)
 ```
 
-## Deploy su Cloudflare (gratuito)
+## Deploy su Cloudflare con Workers Builds (gratuito)
 
-Serve un account Cloudflare. Da eseguire nella cartella del repo, sulla tua macchina:
+Ogni merge su `main` viene pubblicato in automatico da Cloudflare; ogni altro branch ottiene un link di anteprima.
 
-```bash
-npx wrangler login
-npx wrangler d1 create daily-smile             # copia il database_id in worker/wrangler.toml
-npx wrangler d1 execute daily-smile --remote --file worker/schema.sql
-node scripts/gen-vapid.mjs                     # genera le chiavi VAPID
-npx wrangler secret put VAPID_PUBLIC_KEY -c worker/wrangler.toml
-npx wrangler secret put VAPID_PRIVATE_KEY -c worker/wrangler.toml
-# in worker/wrangler.toml imposta VAPID_SUBJECT = "mailto:<tua email>"
-npm run worker:deploy                          # build della PWA + deploy di Worker, API e cron
-```
+Una tantum, dalla dashboard Cloudflare (https://dash.cloudflare.com):
 
-Test locale completo (PWA + API, senza cron reale): metti le due chiavi in `worker/.dev.vars` (`VAPID_PUBLIC_KEY=...`, `VAPID_PRIVATE_KEY=...`), poi `npm run build && npx wrangler dev -c worker/wrangler.toml`.
+1. **D1**: *Storage & Databases → D1 → Create* con nome `daily-smile`; copia il *Database ID* in `worker/wrangler.toml` (`database_id`, non è un segreto).
+2. **Worker**: *Workers & Pages → Create → Import a repository* → GitHub → `Daily-smile`, con:
+   - Project name: `daily-smile` (deve coincidere con `name` in `worker/wrangler.toml`)
+   - Build command: `npm ci && npm run build`
+   - Deploy command: `npx wrangler d1 migrations apply DB --remote -c worker/wrangler.toml && npx wrangler deploy -c worker/wrangler.toml`
+   - Non-production branch deploy command: `npx wrangler versions upload -c worker/wrangler.toml`
+   - Production branch: `main`; abilita le build dei branch non di produzione
+3. **Segreti**: *Worker → Settings → Variables and Secrets*, tipo **Secret**: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (da `node scripts/gen-vapid.mjs`), `VAPID_SUBJECT` (`mailto:<tua email>`).
+
+Rollback: *Worker → Deployments* → versione precedente → *Rollback* (oppure `npx wrangler rollback -c worker/wrangler.toml`). Le migrazioni sono solo additive, quindi una versione precedente funziona sullo stesso database.
+
+Test locale completo (PWA + API, senza cron reale): metti le tre variabili in `worker/.dev.vars`, poi `npm run build && npx wrangler dev -c worker/wrangler.toml`.
 
 Su iPhone le notifiche funzionano solo dopo **Condividi → Aggiungi alla schermata Home** (iOS 16.4+).

@@ -1,6 +1,11 @@
 name = "daily-smile"
 main = "src/index.ts"
 compatibility_date = "2026-09-01"
+workers_dev = true
+# Non-production branches built by Workers Builds get their own preview URL.
+preview_urls = true
+# Variables set in the Cloudflare dashboard survive deploys from this file.
+keep_vars = true
 
 # The PWA build (npm run build -> dist/) is served by the same Worker: one origin, no CORS.
 [assets]
@@ -12,12 +17,19 @@ run_worker_first = ["/api/*"]
 [[d1_databases]]
 binding = "DB"
 database_name = "daily-smile"
-database_id = "REPLACE_WITH_ID_FROM_wrangler_d1_create"
+database_id = "REPLACE_WITH_ID_FROM_CLOUDFLARE_DASHBOARD"
+migrations_dir = "migrations"
+
+# Per-IP cap on subscribe/unsubscribe calls, so nobody can burn the free D1 write quota.
+[[ratelimits]]
+name = "SUBSCRIBE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
 
 # Every minute: deliver notifications that are due.
 [triggers]
 crons = ["* * * * *"]
 
-[vars]
-VAPID_SUBJECT = "mailto:REPLACE_WITH_CONTACT_EMAIL"
-# Secrets (not here): VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY -> `npx wrangler secret put ...`
+# Secrets (Cloudflare dashboard → Worker → Settings → Variables and Secrets, type Secret):
+#   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY  (node scripts/gen-vapid.mjs)
+#   VAPID_SUBJECT                        (mailto:you@example.com — kept out of this public repo)

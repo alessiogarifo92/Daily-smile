@@ -7,7 +7,7 @@ import { isAllowedEndpoint, parseSubscribeBody } from '../src/validate';
 /** Minimal D1 stand-in backed by a real SQLite database, so the SQL itself is exercised. */
 function fakeD1(): D1Database {
   const db = new DatabaseSync(':memory:');
-  db.exec(readFileSync(new URL('../schema.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0001_init.sql', import.meta.url), 'utf8'));
   const prepare = (sql: string) => {
     let params: unknown[] = [];
     // D1 numbers its parameters ?1..?n; node:sqlite understands the same syntax.
@@ -99,6 +99,16 @@ describe('API', () => {
     expect((await handleApi(req('DELETE', '/api/subscribe', { endpoint: ENDPOINT }), env)).status).toBe(200);
     expect((await env.DB.prepare('SELECT * FROM subscriptions').all()).results).toHaveLength(0);
     expect((await handleApi(req('DELETE', '/api/subscribe', { endpoint: 'https://evil.example' }), env)).status).toBe(400);
+  });
+  it('rate-limits subscribe calls per IP', async () => {
+    const seen: string[] = [];
+    let calls = 0;
+    const limited: Env = { ...env, SUBSCRIBE_LIMITER: { limit: async ({ key }: { key: string }) => (seen.push(key), { success: ++calls <= 1 }) } as RateLimit };
+    const withIp = (data: unknown) => new Request('https://daily-smile.example/api/subscribe', { method: 'POST', body: JSON.stringify(data), headers: { 'cf-connecting-ip': '203.0.113.7' } });
+    expect((await handleApi(withIp(body()), limited)).status).toBe(200);
+    expect((await handleApi(withIp(body()), limited)).status).toBe(429);
+    expect(seen).toEqual(['203.0.113.7', '203.0.113.7']);
+    expect((await handleApi(req('GET', '/api/vapid-public-key'), limited)).status).toBe(200); // key endpoint is not limited
   });
   it('404s unknown routes and methods', async () => {
     expect((await handleApi(req('GET', '/api/nope'), env)).status).toBe(404);

@@ -7,6 +7,7 @@ import { parseSubscribeBody, parseUnsubscribeBody, type StoredSubscription } fro
 export interface Env {
   DB: D1Database;
   ASSETS?: Fetcher;
+  SUBSCRIBE_LIMITER?: RateLimit;
   VAPID_PUBLIC_KEY: string;
   VAPID_PRIVATE_KEY: string;
   VAPID_SUBJECT: string;
@@ -51,6 +52,11 @@ export async function handleApi(request: Request, env: Env, now = Date.now()): P
   const url = new URL(request.url);
   if (url.pathname === '/api/vapid-public-key' && request.method === 'GET') {
     return new Response(env.VAPID_PUBLIC_KEY, { headers: { 'content-type': 'text/plain', 'cache-control': 'public, max-age=3600' } });
+  }
+  if (url.pathname === '/api/subscribe' && env.SUBSCRIBE_LIMITER) {
+    const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+    const { success } = await env.SUBSCRIBE_LIMITER.limit({ key: ip });
+    if (!success) return json({ error: 'Too many requests' }, 429);
   }
   if (url.pathname === '/api/subscribe' && request.method === 'POST') {
     const parsed = parseSubscribeBody(await readJson(request));
