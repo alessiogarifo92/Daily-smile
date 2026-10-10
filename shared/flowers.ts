@@ -1,4 +1,5 @@
 import { joinList, type Lang } from './i18n';
+import { dayNumber } from './dates';
 import { createRng, hashString, pick, shuffle } from './random';
 
 export const FLOWER_TYPES = [
@@ -78,6 +79,42 @@ export interface Bouquet {
   ribbon: string;
   /** Today's featured kinds and their main colour (null for flowers with a natural colour). */
   featured: { type: FlowerType; color: FlowerColor | null }[];
+  /** How many kinds and colours today's bouquet uses: changes every day. */
+  style: BouquetStyle;
+}
+
+export interface BouquetStyle {
+  kinds: number;
+  colors: number;
+}
+
+/**
+ * Every (kinds, colours) combination the selection allows: a single flower, a pair, a mix;
+ * one colour (monochrome), two, or all the chosen ones.
+ */
+export function availableStyles(flowerCount: number, colorCount: number): BouquetStyle[] {
+  const uniq = (xs: number[], max: number) => [...new Set(xs.map((x) => Math.min(x, max)))].filter((x) => x >= 1);
+  const kinds = uniq([1, 2, 3, 5], flowerCount);
+  const colors = uniq([1, 2, 3], colorCount);
+  return kinds.flatMap((k) => colors.map((c) => ({ kinds: k, colors: c })));
+}
+
+/**
+ * Style for a day. Walks the styles with a stride that is never a multiple of their count,
+ * so two consecutive days always get a different style (when more than one exists).
+ */
+export function styleForDay(styles: BouquetStyle[], dateKey: string, salt: number): BouquetStyle {
+  const n = styles.length;
+  const stride = n === 1 ? 0 : 1 + (salt % (n - 1));
+  // Coprime stride: consecutive days differ and every style comes round.
+  let s = stride;
+  while (n > 1 && gcd(s, n) !== 1) s = (s % (n - 1)) + 1;
+  const index = (((dayNumber(dateKey) * s + salt) % n) + n) % n;
+  return styles[index] as BouquetStyle;
+}
+
+function gcd(a: number, b: number): number {
+  return b === 0 ? a : gcd(b, a % b);
 }
 
 const WRAPS = ['#F3E6D3', '#E9DCEF', '#DCE8E0', '#F5DCD3'];
@@ -98,15 +135,18 @@ export function composeBouquet(prefs: BouquetPreferences, dateKey: string): Bouq
   const types = [...(flowers.length > 0 ? flowers : DEFAULT_FLOWERS)].sort();
   const palette = [...(colors.length > 0 ? colors : DEFAULT_COLORS)].sort().map(colorHex);
 
-  const rng = createRng(hashString(`${dateKey}|${types.join(',')}|${palette.join(',')}`));
+  const selection = `${types.join(',')}|${palette.join(',')}`;
+  const rng = createRng(hashString(`${dateKey}|${selection}`));
 
-  // Today's featured subset: 2-4 kinds (or all, when fewer were chosen).
-  const kinds = shuffle(rng, types).slice(0, Math.min(types.length, 2 + Math.floor(rng() * 3)));
-  const dayPalette = shuffle(rng, palette).slice(0, Math.min(palette.length, 2 + Math.floor(rng() * 2)));
+  // Today's style decides how many kinds and colours appear; the picks themselves are random.
+  const style = styleForDay(availableStyles(types.length, palette.length), dateKey, hashString(selection));
+  const kinds = shuffle(rng, types).slice(0, style.kinds);
+  const dayPalette = shuffle(rng, palette).slice(0, style.colors);
 
   const count = 11 + Math.floor(rng() * 5); // 11..15 stems
   const kindColor = new Map<FlowerType, string>();
   kinds.forEach((k, i) => kindColor.set(k, dayPalette[i % dayPalette.length] as string));
+  const spare = dayPalette.filter((hex) => ![...kindColor.entries()].some(([k, c]) => c === hex && !NATURAL_COLORS[k]));
 
   const stems: Stem[] = [];
   const golden = Math.PI * (3 - Math.sqrt(5));
@@ -114,11 +154,12 @@ export function composeBouquet(prefs: BouquetPreferences, dateKey: string): Bouq
   for (let i = 0; i < count; i++) {
     const type = i < kinds.length ? (kinds[i] as FlowerType) : pick(rng, kinds);
     const natural = NATURAL_COLORS[type];
-    const color = natural
-      ? pick(rng, natural)
-      : rng() < 0.75
-        ? (kindColor.get(type) as string)
-        : pick(rng, dayPalette);
+    // Each kind wears its own colour; colours no kind took are given to the next stems,
+    // so every colour of today's style really shows up.
+    let color: string;
+    if (natural) color = pick(rng, natural);
+    else if (i >= kinds.length && spare.length > 0) color = spare.shift() as string;
+    else color = i < kinds.length || rng() < 0.6 ? (kindColor.get(type) as string) : (dayPalette[i % dayPalette.length] as string);
     // Fibonacci spiral on the dome: the first stems sit near the top.
     const t = (i + 0.5) / count;
     stems.push({
@@ -140,6 +181,7 @@ export function composeBouquet(prefs: BouquetPreferences, dateKey: string): Bouq
       type: k,
       color: NATURAL_COLORS[k] ? null : (FLOWER_COLORS.find((c) => c.hex === kindColor.get(k))?.id ?? null),
     })),
+    style,
   };
 }
 

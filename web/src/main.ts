@@ -1,9 +1,9 @@
 import './styles.css';
-import { dateKey, formatDate, localParts } from '../../shared/dates';
+import { formatDate, localParts } from '../../shared/dates';
 import { FLOWER_COLORS, FLOWER_TYPES, colorLabel, composeBouquet, describeBouquet, flowerLabel, type FlowerColor, type FlowerType } from '../../shared/flowers';
 import { resolveLang, t, type Lang, type LangSetting, type MessageKey } from '../../shared/i18n';
 import { messageFor } from '../../shared/messages';
-import { formatTime, parseTime } from '../../shared/schedule';
+import { formatTime, giftDayKey, parseTime } from '../../shared/schedule';
 import { greetingFor, isDark, resolvePhase, type ThemeMode } from '../../shared/theme';
 import { createBouquetView, type BouquetView } from './bouquet3d';
 import { loadPreferences, savePreferences, type Preferences } from './prefs';
@@ -25,8 +25,9 @@ let lang: Lang = resolveLang(prefs.lang, navigator.language);
 let view: BouquetView | null | undefined;
 let shownKey = '';
 
+/** The day whose gift is on display: it changes at the notification time when one is set. */
 function todayKey(): string {
-  return dateKey(Date.now(), timeZone);
+  return giftDayKey(Date.now(), timeZone, prefs.notifications ? parseTime(prefs.time) : null);
 }
 
 /** Static texts marked in the HTML with data-i18n / data-i18n-aria. */

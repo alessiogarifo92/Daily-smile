@@ -129,7 +129,8 @@ export async function sendDue(env: Env, now = Date.now(), send: Sender = webPush
   for (const row of results) {
     const lang = isLang(row.lang) ? row.lang : 'it';
     const sub: StoredSubscription = { endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth, time: row.time, timeZone: row.time_zone, lang };
-    const body = messageFor(dateKey(now, row.time_zone), lang);
+    // The scheduled day, not the delivery minute: a run that slips past midnight still matches the app.
+    const body = messageFor(dateKey(row.next_send_at, row.time_zone), lang);
     let status: number;
     try {
       status = await send(sub, { title: t(lang, 'notif.title'), body, url: '/' }, env);

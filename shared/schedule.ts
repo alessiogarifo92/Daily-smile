@@ -1,4 +1,4 @@
-import { isValidTimeZone, localParts } from './dates';
+import { dateKey, dayNumber, isValidTimeZone, localParts } from './dates';
 
 export interface TimeOfDay {
   hour: number;
@@ -46,4 +46,17 @@ export function nextSendAt(nowMs: number, time: TimeOfDay, tz: string): number {
     if (at > nowMs) return at;
   }
   throw new Error('Unreachable: no send time found within two days');
+}
+
+/**
+ * Which day's bouquet and message to show. With a daily notification the new gift arrives
+ * together with it: before today's notification time, yesterday's is still on display.
+ * Without one, the gift changes at midnight.
+ */
+export function giftDayKey(nowMs: number, tz: string, notifyAt: TimeOfDay | null): string {
+  const today = dateKey(nowMs, tz);
+  if (!notifyAt) return today;
+  const now = localParts(nowMs, tz);
+  if (now.hour * 60 + now.minute >= notifyAt.hour * 60 + notifyAt.minute) return today;
+  return new Date((dayNumber(today) - 1) * 86_400_000).toISOString().slice(0, 10);
 }

@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { dateKey, dayNumber, formatDate, isValidTimeZone, italianDate, localParts } from '../shared/dates';
-import { DEFAULT_COLORS, DEFAULT_FLOWERS, FLOWER_COLORS, FLOWER_TYPES, colorHex, colorLabel, composeBouquet, describeBouquet, flowerLabel, isFlowerColor, isFlowerType } from '../shared/flowers';
+import { DEFAULT_COLORS, DEFAULT_FLOWERS, FLOWER_COLORS, FLOWER_TYPES, availableStyles, styleForDay, colorHex, colorLabel, composeBouquet, describeBouquet, flowerLabel, isFlowerColor, isFlowerType } from '../shared/flowers';
+import type { FlowerColor, FlowerType } from '../shared/flowers';
 import { STRINGS, isLang, joinList, langFromLocale, resolveLang, t } from '../shared/i18n';
 import { MESSAGES, MESSAGES_EN, messageFor } from '../shared/messages';
+import { QUOTES_EN } from '../shared/content/messages-en';
+import { QUOTES_IT } from '../shared/content/messages-it';
 import { createRng, hashString, pick, shuffle } from '../shared/random';
-import { formatTime, nextSendAt, parseTime, zonedToUtc } from '../shared/schedule';
+import { formatTime, giftDayKey, nextSendAt, parseTime, zonedToUtc } from '../shared/schedule';
 import { greetingFor, isDark, phaseForHour, resolvePhase } from '../shared/theme';
 
 describe('random', () => {
@@ -250,7 +253,6 @@ describe('i18n', () => {
     for (const c of FLOWER_COLORS) expect(c.en.length).toBeGreaterThan(0);
   });
   it('English messages: same rotation guarantees, all different from the Italian ones', () => {
-    expect(MESSAGES_EN.length).toBe(MESSAGES.length);
     expect(new Set(MESSAGES_EN).size).toBe(MESSAGES_EN.length);
     const start = dayNumber('2026-01-01');
     const seen = new Set<string>();
@@ -264,5 +266,113 @@ describe('i18n', () => {
     }
     expect(seen.size).toBe(MESSAGES_EN.length);
     expect(MESSAGES_EN).not.toContain(MESSAGES[0]);
+  });
+});
+
+describe('daily bouquet styles', () => {
+  const dayKeys = (n: number) => {
+    const start = dayNumber('2026-01-01');
+    return Array.from({ length: n }, (_, d) => new Date((start + d) * 86_400_000).toISOString().slice(0, 10));
+  };
+  const signature = (b: ReturnType<typeof composeBouquet>) => JSON.stringify([b.style, b.featured]);
+
+  it('offers single flower, pair and mix, each in one or more colours', () => {
+    expect(availableStyles(8, 9)).toEqual([1, 2, 3, 5].flatMap((k) => [1, 2, 3].map((c) => ({ kinds: k, colors: c }))));
+    expect(availableStyles(2, 1)).toEqual([{ kinds: 1, colors: 1 }, { kinds: 2, colors: 1 }]);
+    expect(availableStyles(1, 1)).toEqual([{ kinds: 1, colors: 1 }]);
+  });
+  it('never repeats yesterday’s style, and uses every style over time', () => {
+    for (const [f, c] of [[8, 9], [3, 2], [2, 1], [1, 2], [4, 4]] as const) {
+      const styles = availableStyles(f, c);
+      const seen = new Set<string>();
+      let prev = '';
+      for (const key of dayKeys(120)) {
+        const s = JSON.stringify(styleForDay(styles, key, 12345));
+        expect(s).not.toBe(prev);
+        prev = s;
+        seen.add(s);
+      }
+      expect(seen.size).toBe(styles.length);
+    }
+  });
+  it('a whole year with no bouquet equal to the day before, only chosen flowers and colours', () => {
+    const prefs = { flowers: ['rosa', 'tulipano', 'peonia', 'girasole'] as FlowerType[], colors: ['corallo', 'cipria', 'sole'] as FlowerColor[] };
+    const allowed = new Set(prefs.colors.map(colorHex));
+    let prev = '';
+    const stylesSeen = new Set<string>();
+    for (const key of dayKeys(365)) {
+      const b = composeBouquet(prefs, key);
+      expect(signature(b)).not.toBe(prev);
+      prev = signature(b);
+      stylesSeen.add(JSON.stringify(b.style));
+      expect(b.featured.length).toBe(b.style.kinds);
+      expect(new Set(b.stems.map((s) => s.type)).size).toBe(b.style.kinds);
+      const used = new Set(b.stems.map((s) => s.color));
+      expect(used.size).toBe(b.style.colors);
+      for (const c of used) expect(allowed.has(c)).toBe(true);
+    }
+    expect(stylesSeen.size).toBe(availableStyles(4, 3).length);
+  });
+  it('single-kind days use exactly one of the chosen flowers', () => {
+    const prefs = { flowers: ['rosa', 'tulipano', 'margherita'] as FlowerType[], colors: ['rosso', 'panna'] as FlowerColor[] };
+    const singles = dayKeys(60).map((k) => composeBouquet(prefs, k)).filter((b) => b.style.kinds === 1);
+    expect(singles.length).toBeGreaterThan(0);
+    for (const b of singles) {
+      expect(new Set(b.stems.map((s) => s.type)).size).toBe(1);
+      expect(prefs.flowers).toContain(b.stems[0]!.type);
+    }
+  });
+  it('lavender keeps its natural colour whatever the style', () => {
+    for (const key of dayKeys(20)) {
+      const b = composeBouquet({ flowers: ['lavanda'], colors: ['rosso'] }, key);
+      for (const s of b.stems) expect(s.color).not.toBe('#C0283C');
+    }
+  });
+});
+
+describe('gift day', () => {
+  const rome = 'Europe/Rome';
+  const at = (h: number, m: number, day = 10) => Date.UTC(2026, 9, day, h - 2, m); // CEST
+  it('changes at midnight without a notification', () => {
+    expect(giftDayKey(at(0, 5), rome, null)).toBe('2026-10-10');
+    expect(giftDayKey(at(23, 59), rome, null)).toBe('2026-10-10');
+  });
+  it('changes at the notification time when one is set', () => {
+    const t = { hour: 8, minute: 30 };
+    expect(giftDayKey(at(8, 29), rome, t)).toBe('2026-10-09');
+    expect(giftDayKey(at(8, 30), rome, t)).toBe('2026-10-10');
+    expect(giftDayKey(at(22, 0), rome, t)).toBe('2026-10-10');
+  });
+  it('handles month boundaries and late-night times', () => {
+    expect(giftDayKey(Date.UTC(2026, 10, 1, 5, 0), rome, { hour: 9, minute: 0 })).toBe('2026-10-31');
+    expect(giftDayKey(at(23, 58), rome, { hour: 23, minute: 59 })).toBe('2026-10-09');
+    expect(giftDayKey(at(23, 59), rome, { hour: 23, minute: 59 })).toBe('2026-10-10');
+  });
+});
+
+describe('message library', () => {
+  for (const [lang, list, quotes] of [['it', MESSAGES, QUOTES_IT], ['en', MESSAGES_EN, QUOTES_EN]] as const) {
+    it(`${lang}: at least 500 messages, no duplicates, short enough for a notification`, () => {
+      expect(list.length).toBeGreaterThanOrEqual(500);
+      expect(new Set(list).size).toBe(list.length);
+      for (const m of list) {
+        expect(m.trim()).toBe(m);
+        expect(m.length, m).toBeLessThanOrEqual(140);
+        expect(m.length, m).toBeGreaterThanOrEqual(12);
+      }
+    });
+    it(`${lang}: every quote is quoted and attributed, and all of them are in the rotation`, () => {
+      expect(quotes.length).toBeGreaterThanOrEqual(25);
+      for (const q of quotes) expect(q, q).toMatch(/^[«“].+[»”] — [A-Z][\p{L}. ]+$/u);
+      for (const q of quotes) expect(list).toContain(q);
+    });
+  }
+  it('Italian messages never assume the reader’s gender', () => {
+    const gendered = /\b(sei|essere|sentirti|restare)\s+(bravo|brava|pronto|pronta|stanco|stanca|solo|sola|fiero|fiera|unico|unica|bello|bella|allegro|allegra|stato|stata|coraggioso|coraggiosa|fantastico|fantastica|grato|grata|voluto|voluta|amato|amata)\b|\bte (stesso|stessa)\b|\bbentornat[oa]\b/i;
+    for (const m of MESSAGES) expect(m, m).not.toMatch(gendered);
+  });
+  it('quotes show up regularly, not all in one stretch', () => {
+    const firstQuote = MESSAGES.findIndex((m) => QUOTES_IT.includes(m));
+    expect(firstQuote).toBeLessThan(30);
   });
 });

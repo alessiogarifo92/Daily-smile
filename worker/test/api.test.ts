@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_FAILURES, PUSH_BATCH, clientKey, handleApi, sendDue, webPushSender, type Env, type Sender } from '../src/app';
 import worker from '../src/index';
 import { isAllowedEndpoint, parseSubscribeBody } from '../src/validate';
-import { MESSAGES_EN } from '../../shared/messages';
+import { MESSAGES_EN, messageFor } from '../../shared/messages';
 
 /** Minimal D1 stand-in backed by a real SQLite database, so the SQL itself is exercised. */
 function fakeD1(): D1Database {
@@ -195,6 +195,12 @@ describe('daily delivery (cron)', () => {
     const { results } = await env.DB.prepare('SELECT next_send_at FROM subscriptions').all<{ next_send_at: number }>();
     expect(results[0]!.next_send_at).toBe(Date.UTC(2026, 9, 11, 6, 0));
     expect(await sendDue(env, at0801 + 60_000, send)).toEqual({ sent: 0, removed: 0, failed: 0 });
+  });
+  it('a run delayed past midnight still sends the message of the scheduled day', async () => {
+    await handleApi(req('POST', '/api/subscribe', body({ time: '23:59' })), env, Date.UTC(2026, 9, 10, 20, 0));
+    const send = vi.fn<Sender>(async () => 201);
+    await sendDue(env, Date.UTC(2026, 9, 10, 22, 3), send); // 00:03 on the 11th in Rome
+    expect(send.mock.calls[0]![1].body).toBe(messageFor('2026-10-10', 'it'));
   });
   it('forgets subscriptions the push service reports as gone', async () => {
     await handleApi(req('POST', '/api/subscribe', body()), env, at0700);
