@@ -229,7 +229,7 @@ describe('i18n', () => {
     expect(isLang('fr')).toBe(false);
   });
   it('fills placeholders and leaves unknown ones visible', () => {
-    expect(t('en', 'next.today', { t: '07:30' })).toBe('Next bouquet today at 07:30');
+    expect(t('en', 'next.today', { t: '07:30' })).toBe('Your new bouquet arrives today at 07:30');
     expect(t('it', 'next.tomorrow', { t: '08:00' })).toBe('Prossimo bouquet domani alle 08:00');
     expect(t('en', 'stage.aria')).toBe('3D bouquet of {d}');
   });

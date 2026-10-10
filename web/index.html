@@ -16,7 +16,15 @@
   <div class="app" id="app">
     <main id="view-oggi" class="view" aria-labelledby="greeting">
       <header class="top">
-        <div class="chip"><span class="dot" aria-hidden="true"></span>Daily Smile</div>
+        <div class="brand" role="img" aria-label="Daily Smile">
+          <svg class="brand-mark" width="40" height="40" viewBox="0 0 120 120" aria-hidden="true">
+            <path d="M60 112 C60 92 60 80 60 64" stroke="var(--stem)" stroke-width="8" stroke-linecap="round" fill="none"/>
+            <path d="M60 98 C44 96 35 84 35 72 C50 74 58 84 60 98 Z" fill="var(--leaf)"/>
+            <path d="M30 32 C30 16 44 12 52 24 L60 12 L68 24 C76 12 90 16 90 32 C90 54 76 66 60 66 C44 66 30 54 30 32 Z" fill="var(--coral)"/>
+            <path d="M44 40 Q60 55 76 40" stroke="#1F2340" stroke-width="5" stroke-linecap="round" fill="none"/>
+          </svg>
+          <span class="brand-word" aria-hidden="true">Daily <span class="brand-accent">Smile</span></span>
+        </div>
         <h1 id="greeting" class="greeting">Buongiorno</h1>
         <p id="today" class="date"></p>
       </header>
@@ -27,7 +35,7 @@
       </div>
 
       <article class="card" aria-labelledby="card-title">
-        <h2 id="card-title" class="card-kicker"><span data-i18n="card.for">Per te</span> · <span id="card-date"></span></h2>
+        <h2 id="card-title" class="card-kicker"><span id="card-for">Per te</span> · <span id="card-date"></span></h2>
         <p id="message" class="message"></p>
         <p id="bouquet-desc" class="bouquet-desc"></p>
         <div class="card-foot">

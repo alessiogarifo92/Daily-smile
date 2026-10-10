@@ -10,6 +10,8 @@
   --coral: #ff7a59;
   --on-coral: #1f2340;
   --sign: #a33a5e;
+  --stem: #3e9a6e;
+  --leaf: #5fb38a;
   --radius: 20px;
   color-scheme: light;
 }
@@ -94,14 +96,10 @@ body {
 .view[hidden] { display: none; }
 
 .top { padding-top: 28px; display: flex; flex-direction: column; gap: 6px; position: relative; z-index: 1; }
-.chip {
-  align-self: flex-start;
-  display: inline-flex; align-items: center; gap: 8px;
-  height: 32px; padding: 0 14px; border-radius: 16px;
-  background: var(--surface); color: var(--ink);
-  font-weight: 700; font-size: 14px;
-}
-.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--coral); }
+.brand { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; margin-left: -4px; }
+.brand-mark { display: block; }
+.brand-word { font-family: 'Caveat', cursive; font-weight: 700; font-size: 32px; line-height: 1; color: var(--ink); }
+.brand-accent { color: var(--coral); }
 .greeting { margin: 6px 0 0; font-family: 'Caveat', cursive; font-weight: 700; font-size: 46px; line-height: 1; }
 .date { margin: 0; color: var(--muted); font-size: 15px; }
 .date::first-letter { text-transform: uppercase; }

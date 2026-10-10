@@ -1,5 +1,6 @@
 /* Daily Smile service worker: offline shell + daily push notification. */
-const CACHE = 'daily-smile-v1';
+// Bump on every change to non-hashed files (icons, manifest) so old copies are dropped.
+const CACHE = 'daily-smile-v2';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/', '/manifest.webmanifest', '/icons/icon-192.png'])));

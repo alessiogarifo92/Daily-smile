@@ -1,5 +1,5 @@
 import './styles.css';
-import { formatDate, localParts } from '../../shared/dates';
+import { dateKey, formatDate, localParts } from '../../shared/dates';
 import { FLOWER_COLORS, FLOWER_TYPES, colorLabel, composeBouquet, describeBouquet, flowerLabel, type FlowerColor, type FlowerType } from '../../shared/flowers';
 import { resolveLang, t, type Lang, type LangSetting, type MessageKey } from '../../shared/i18n';
 import { messageFor } from '../../shared/messages';
@@ -51,21 +51,23 @@ function applyTheme(mode: ThemeMode): void {
 }
 
 function renderToday(force = false): void {
+  // The header always shows the real date; the card shows whose gift is on display.
+  const realToday = dateKey(Date.now(), timeZone);
+  $('today').textContent = formatDate(realToday, lang);
+  renderNext();
   const key = todayKey();
   if (!force && key === shownKey) return;
   shownKey = key;
   const bouquet = composeBouquet(prefs, key);
   const description = describeBouquet(bouquet, lang);
-  const pretty = formatDate(key, lang);
-  $('today').textContent = pretty;
-  $('card-date').textContent = pretty;
+  $('card-for').textContent = t(lang, key === realToday ? 'card.for' : 'card.yesterday');
+  $('card-date').textContent = formatDate(key, lang);
   $('message').textContent = messageFor(key, lang);
   $('bouquet-desc').textContent = t(lang, 'bouquet.today', { d: description });
   $('stage').setAttribute('aria-label', t(lang, 'stage.aria', { d: description }));
   if (view === undefined) view = createBouquetView($('stage'));
   if (view) view.show(bouquet);
   else $('stage-fallback').hidden = false;
-  renderNext();
 }
 
 function renderNext(): void {

@@ -23,13 +23,14 @@ const it = {
   'greeting.sera': 'Buonasera',
   'greeting.notte': 'Dolce notte',
   'card.for': 'Per te',
+  'card.yesterday': 'Il regalo di ieri',
   'card.sign': '— con affetto',
   'share.aria': 'Condividi il messaggio',
   'stage.fallback': 'Il tuo dispositivo non mostra il 3D, ma il bouquet di oggi c’è lo stesso.',
   'stage.aria': 'Bouquet 3D di {d}',
   'bouquet.today': 'Il bouquet di oggi: {d}.',
   'list.and': 'e',
-  'next.today': 'Prossimo bouquet oggi alle {t}',
+  'next.today': 'Il nuovo bouquet arriva oggi alle {t}',
   'next.tomorrow': 'Prossimo bouquet domani alle {t}',
   'next.ask': 'Vuoi riceverlo ogni giorno? ',
   'next.enable': 'Attiva la notifica',
@@ -65,6 +66,7 @@ const it = {
   'push.device': 'Non è stato possibile attivare le notifiche su questo dispositivo.',
   'notif.title': 'Il tuo bouquet di oggi è arrivato',
   'share.suffix': '— Daily Smile',
+  'brand.aria': 'Daily Smile',
 } as const;
 
 export type MessageKey = keyof typeof it;
@@ -77,13 +79,14 @@ const en: Record<MessageKey, string> = {
   'greeting.sera': 'Good evening',
   'greeting.notte': 'Sweet dreams',
   'card.for': 'For you',
+  'card.yesterday': 'Yesterday’s gift',
   'card.sign': '— with love',
   'share.aria': 'Share the message',
   'stage.fallback': 'Your device can’t show 3D, but today’s bouquet is still here for you.',
   'stage.aria': '3D bouquet of {d}',
   'bouquet.today': 'Today’s bouquet: {d}.',
   'list.and': 'and',
-  'next.today': 'Next bouquet today at {t}',
+  'next.today': 'Your new bouquet arrives today at {t}',
   'next.tomorrow': 'Next bouquet tomorrow at {t}',
   'next.ask': 'Want it every day? ',
   'next.enable': 'Turn on the notification',
@@ -119,6 +122,7 @@ const en: Record<MessageKey, string> = {
   'push.device': 'Notifications couldn’t be turned on on this device.',
   'notif.title': 'Your bouquet for today has arrived',
   'share.suffix': '— Daily Smile',
+  'brand.aria': 'Daily Smile',
 };
 
 export const STRINGS: Record<Lang, Record<MessageKey, string>> = { it, en };
