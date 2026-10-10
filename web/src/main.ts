@@ -1,7 +1,8 @@
 import './styles.css';
 import { dateKey, formatDate, localParts } from '../../shared/dates';
-import { FLOWER_COLORS, FLOWER_TYPES, colorLabel, composeBouquet, describeBouquet, flowerLabel, type Bouquet, type FlowerColor, type FlowerType } from '../../shared/flowers';
+import { FLOWER_COLORS, FLOWER_TYPES, colorHex, colorLabel, composeBouquet, describeBouquet, flowerLabel, type Bouquet, type FlowerColor, type FlowerType } from '../../shared/flowers';
 import { resolveLang, t, type Lang, type LangSetting, type MessageKey } from '../../shared/i18n';
+import { colorMeaning, flowerMeaning, meaningColors, todayMeanings } from '../../shared/meanings';
 import { messageFor } from '../../shared/messages';
 import { formatTime, giftDayKey, parseTime } from '../../shared/schedule';
 import { greetingFor, isDark, resolvePhase, type ThemeMode } from '../../shared/theme';
@@ -53,6 +54,7 @@ function applyLanguage(): void {
     if (caption) caption.textContent = name;
   });
   renderPreview();
+  renderMeanings();
   pushHint();
 }
 
@@ -78,6 +80,7 @@ function renderToday(force = false): void {
   $('message').textContent = messageFor(key, lang);
   $('bouquet-desc').textContent = t(lang, 'bouquet.today', { d: description });
   $('stage').setAttribute('aria-label', t(lang, 'stage.aria', { d: description }));
+  renderMeanings();
   void showBouquet(bouquet);
 }
 
@@ -108,8 +111,11 @@ async function showBouquet(bouquet: Bouquet): Promise<void> {
   next?.setActive(currentTab() === 'oggi');
 }
 
-function currentTab(): 'oggi' | 'preferenze' {
-  return location.hash === '#/preferenze' ? 'preferenze' : 'oggi';
+type Tab = 'oggi' | 'fiori' | 'preferenze';
+
+function currentTab(): Tab {
+  if (location.hash === '#/preferenze') return 'preferenze';
+  return location.hash === '#/fiori' ? 'fiori' : 'oggi';
 }
 
 function renderNext(): void {
@@ -133,6 +139,7 @@ function route(): void {
   const tab = currentTab();
   $('view-oggi').hidden = tab !== 'oggi';
   $('view-preferenze').hidden = tab !== 'preferenze';
+  $('view-fiori').hidden = tab !== 'fiori';
   document.querySelectorAll<HTMLAnchorElement>('.tabs a').forEach((a) => {
     if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
@@ -143,7 +150,83 @@ function route(): void {
   }
   view?.view.setActive(tab === 'oggi');
   if (tab === 'preferenze') fillForm();
+  if (tab === 'fiori') renderMeanings();
   window.scrollTo(0, 0);
+}
+
+// ---- Language of flowers ----
+
+/** Icon, name and meaning of a flower, then one line per colour: a dot and what it says. */
+function meaningBody(type: FlowerType, colors: readonly FlowerColor[]): HTMLElement[] {
+  const text = document.createElement('p');
+  text.className = 'meaning-text';
+  text.textContent = flowerMeaning(type, lang);
+  const out: HTMLElement[] = [text];
+  if (type === 'lavanda') {
+    const natural = document.createElement('p');
+    natural.className = 'meaning-natural';
+    natural.textContent = t(lang, 'meanings.natural');
+    out.push(natural);
+  }
+  if (colors.length > 0) {
+    const list = document.createElement('ul');
+    list.className = 'color-meanings';
+    for (const color of colors) {
+      const li = document.createElement('li');
+      li.dataset.color = color;
+      const dot = document.createElement('span');
+      dot.className = 'color-dot';
+      dot.style.background = colorHex(color);
+      dot.setAttribute('aria-hidden', 'true');
+      const line = document.createElement('span');
+      line.textContent = colorMeaning(type, color, lang) ?? '';
+      li.append(dot, line);
+      list.append(li);
+    }
+    out.push(list);
+  }
+  return out;
+}
+
+function meaningHead(type: FlowerType, tag: 'h3' | 'span'): HTMLElement[] {
+  const icon = document.createElement('span');
+  icon.className = 'meaning-icon';
+  icon.innerHTML = flowerIcon(type);
+  const name = document.createElement(tag);
+  name.className = 'meaning-name';
+  name.textContent = flowerLabel(type, lang);
+  return [icon, name];
+}
+
+/** Today's flowers and colours first, then every flower with every colour it comes in. */
+function renderMeanings(): void {
+  const today = $('meanings-today');
+  today.replaceChildren(
+    ...todayMeanings(composeBouquet(prefs, todayKey())).map(({ type, colors }) => {
+      const li = document.createElement('li');
+      li.className = 'meaning-item';
+      li.dataset.flower = type;
+      const head = document.createElement('div');
+      head.className = 'meaning-head';
+      head.append(...meaningHead(type, 'h3'));
+      li.append(head, ...meaningBody(type, colors));
+      return li;
+    }),
+  );
+  const all = $('meanings-all');
+  const open = new Set([...all.querySelectorAll<HTMLDetailsElement>('details[open]')].map((d) => d.dataset.flower));
+  all.replaceChildren(
+    ...FLOWER_TYPES.map((f) => {
+      const details = document.createElement('details');
+      details.className = 'meaning-flower';
+      details.dataset.flower = f.id;
+      details.open = open.has(f.id);
+      const summary = document.createElement('summary');
+      summary.append(...meaningHead(f.id, 'span'));
+      details.append(summary, ...meaningBody(f.id, meaningColors(f.id)));
+      return details;
+    }),
+  );
 }
 
 // ---- Preferences form ----

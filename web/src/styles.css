@@ -131,6 +131,39 @@ body {
   border: 1.5px solid var(--paper-ink); background: transparent; color: var(--paper-ink);
   display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
 }
+.meaning-link {
+  align-self: flex-start; display: inline-flex; align-items: center; min-height: 44px; margin: -10px 0 -10px;
+  color: var(--sign); font-weight: 700; font-size: 15px; text-decoration: underline; text-underline-offset: 3px;
+}
+.meaning-link::after { content: ' →'; white-space: pre; }
+
+/* Language of flowers */
+.meanings-today, .meanings-all { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+.meaning-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.meaning-item {
+  background: var(--paper); color: var(--paper-ink); border-radius: 8px; padding: 16px 18px;
+  box-shadow: var(--card-shadow); display: flex; flex-direction: column; gap: 8px;
+}
+.meaning-head, .meaning-flower summary { display: flex; align-items: center; gap: 10px; }
+.meaning-icon { display: flex; flex: none; }
+.meaning-name { margin: 0; font-family: 'Caveat', cursive; font-weight: 700; font-size: 30px; line-height: 1; }
+.meaning-text, .meaning-natural { margin: 0; font-size: 16px; line-height: 1.4; }
+.meaning-natural { font-size: 14px; opacity: 0.75; }
+.color-meanings { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.color-meanings li { display: flex; align-items: flex-start; gap: 10px; font-size: 15px; line-height: 1.4; }
+.color-dot { flex: none; width: 16px; height: 16px; margin-top: 2px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgb(42 36 64 / 0.25); }
+.meaning-all-list { display: flex; flex-direction: column; gap: 8px; }
+.meaning-flower { background: var(--surface); border-radius: var(--radius); padding: 0 16px; }
+.meaning-flower summary { min-height: 60px; cursor: pointer; list-style: none; }
+.meaning-flower summary::-webkit-details-marker { display: none; }
+.meaning-flower summary::after { content: '+'; margin-left: auto; font: 700 22px 'Karla', sans-serif; color: var(--muted); }
+.meaning-flower[open] summary::after { content: '−'; }
+.meaning-flower .meaning-name { font-size: 26px; }
+.meaning-flower[open] { padding-bottom: 16px; display: flex; flex-direction: column; gap: 10px; }
+.meaning-flower[open] > :not(summary) { margin-left: 2px; }
+.meaning-flower summary:focus-visible { outline: 2px solid var(--coral); outline-offset: 2px; border-radius: 8px; }
+.meanings-note { margin-top: 20px; }
+
 .next { text-align: center; color: var(--muted); font-size: 15px; margin: 18px 0 0; }
 .next a { color: var(--ink); font-weight: 700; }
 
