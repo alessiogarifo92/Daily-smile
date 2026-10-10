@@ -132,3 +132,12 @@ describe('time boxes', () => {
     expect(hourComplete('')).toBe(false);
   });
 });
+
+describe('withTimeout', () => {
+  it('resolves when the promise wins and rejects with a readable error when time runs out', async () => {
+    const { withTimeout, PushError } = await import('../web/src/push');
+    await expect(withTimeout(Promise.resolve(7), 50)).resolves.toBe(7);
+    await expect(withTimeout(new Promise(() => {}), 10)).rejects.toBeInstanceOf(PushError);
+    await expect(withTimeout(Promise.reject(new Error('boom')), 50)).rejects.toThrow('boom');
+  });
+});

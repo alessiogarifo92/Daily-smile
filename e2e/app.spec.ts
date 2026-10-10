@@ -115,7 +115,8 @@ test('notification switch is reachable and explains failures instead of crashing
   if (await toggle.isEnabled()) {
     await toggle.check();
     await page.getByRole('button', { name: 'Salva' }).click();
-    await expect(page.locator('#prefs-status')).toHaveText(/notifiche|server|push/i);
+    // First save waits for the service worker to install: allow for it.
+    await expect(page.locator('#prefs-status')).toHaveText(/notifiche|server|push/i, { timeout: 15_000 });
     await page.reload();
     await expect(page.getByLabel('Notifica giornaliera')).not.toBeChecked();
   }

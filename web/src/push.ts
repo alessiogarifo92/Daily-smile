@@ -42,11 +42,28 @@ async function api(path: string, init?: RequestInit): Promise<Response> {
   return res;
 }
 
+/** Rejects with a readable error instead of leaving the user waiting forever. */
+export function withTimeout<T>(promise: Promise<T>, ms: number, key: MessageKey = 'push.device'): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new PushError(key)), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e: unknown) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
+}
+
 /** Asks permission, subscribes this device and registers the daily time with the server. */
 export async function enablePush(time: string, timeZone: string, lang: Lang): Promise<void> {
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') throw new PushError('push.blocked');
-  const reg = await navigator.serviceWorker.ready;
+  const reg = await withTimeout(navigator.serviceWorker.ready, 10_000);
   let sub = await reg.pushManager.getSubscription();
   if (!sub) {
     const key = (await (await api('/api/vapid-public-key')).text()).trim();

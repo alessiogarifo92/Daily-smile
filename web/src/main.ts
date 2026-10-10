@@ -211,6 +211,9 @@ async function submit(): Promise<void> {
   const wantsPush = $<HTMLInputElement>('notifications').checked;
   const next: Preferences = { flowers: [...draft.flowers], colors: [...draft.colors], time: formatTime(time), notifications: wantsPush, theme, lang: langSetting };
   const nextLang = resolveLang(langSetting, navigator.language);
+  const save = document.querySelector<HTMLButtonElement>('#prefs button[type="submit"]');
+  if (save) save.disabled = true;
+  status('status.working');
 
   let pushError: MessageKey | null = null;
   try {
@@ -222,6 +225,7 @@ async function submit(): Promise<void> {
     next.notifications = !wantsPush && prefs.notifications;
   }
 
+  if (save) save.disabled = false;
   prefs = next;
   lang = nextLang;
   const saved = savePreferences(storage, prefs);
