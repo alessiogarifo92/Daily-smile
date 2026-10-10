@@ -93,6 +93,7 @@ function route(): void {
     if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
+  view?.setActive(tab === 'oggi');
   if (tab === 'preferenze') fillForm();
   window.scrollTo(0, 0);
 }

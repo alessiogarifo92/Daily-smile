@@ -8,6 +8,8 @@ import { buildHead, createMaterials, leafGeometry, type Materials } from './flow
 
 export interface BouquetView {
   show(bouquet: Bouquet): void;
+  /** Pauses the render loop while the bouquet is off screen (saves battery and CPU). */
+  setActive(active: boolean): void;
   dispose(): void;
 }
 
@@ -21,7 +23,11 @@ export function createBouquetView(container: HTMLElement): BouquetView | null {
   }
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  // Devices without GPU acceleration render WebGL in software: keep them responsive with
+  // a lower resolution and frame rate instead of freezing the whole page.
+  const software = isSoftwareRenderer(renderer);
+  renderer.setPixelRatio(software ? 1 : Math.min(window.devicePixelRatio || 1, 2));
+  const minFrameMs = software ? 1000 / 20 : 0;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -73,7 +79,10 @@ export function createBouquetView(container: HTMLElement): BouquetView | null {
   resize();
 
   const clock = new THREE.Clock();
-  renderer.setAnimationLoop(() => {
+  let lastFrame = -Infinity;
+  const frame = (now: number) => {
+    if (now - lastFrame < minFrameMs) return;
+    lastFrame = now;
     const elapsed = clock.getElapsedTime();
     if (root) {
       const t = reducedMotion ? 1 : (elapsed - startedAt) / 1.3;
@@ -88,7 +97,9 @@ export function createBouquetView(container: HTMLElement): BouquetView | null {
     }
     controls.update();
     renderer.render(scene, camera);
-  });
+  };
+  let active = true;
+  renderer.setAnimationLoop(frame);
 
   return {
     show(bouquet) {
@@ -98,6 +109,11 @@ export function createBouquetView(container: HTMLElement): BouquetView | null {
       heads = built.heads;
       scene.add(root);
       startedAt = clock.getElapsedTime();
+    },
+    setActive(next) {
+      if (next === active) return;
+      active = next;
+      renderer.setAnimationLoop(next ? frame : null);
     },
     dispose() {
       renderer.setAnimationLoop(null);
@@ -219,4 +235,15 @@ function disposeTree(root: THREE.Object3D): void {
     if (o instanceof THREE.Mesh) o.geometry.dispose();
     if (o.userData.ownMaterial instanceof THREE.Material) o.userData.ownMaterial.dispose();
   });
+}
+
+function isSoftwareRenderer(renderer: THREE.WebGLRenderer): boolean {
+  try {
+    const gl = renderer.getContext();
+    const info = gl.getExtension('WEBGL_debug_renderer_info');
+    const name = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER));
+    return /swiftshader|llvmpipe|softpipe|software|basic render/i.test(name);
+  } catch {
+    return false;
+  }
 }
