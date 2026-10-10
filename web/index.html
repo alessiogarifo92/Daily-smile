@@ -38,6 +38,7 @@
         <h2 id="card-title" class="card-kicker"><span id="card-for">Per te</span> · <span id="card-date"></span></h2>
         <p id="message" class="message"></p>
         <p id="bouquet-desc" class="bouquet-desc"></p>
+        <a id="meaning-link" class="meaning-link" href="#/fiori" data-i18n="card.meaning">Cosa significa?</a>
         <div class="card-foot">
           <span class="sign" data-i18n="card.sign">— con affetto</span>
           <button id="share" class="icon-btn" type="button" aria-label="Condividi il messaggio" data-i18n-aria="share.aria">
@@ -119,8 +120,24 @@
       </form>
     </main>
 
+    <main id="view-fiori" class="view" aria-labelledby="meanings-title" hidden>
+      <header class="top">
+        <h1 id="meanings-title" class="prefs-title" data-i18n="meanings.title">Il linguaggio dei fiori</h1>
+      </header>
+      <section class="meanings-today" aria-labelledby="meanings-today-title">
+        <h2 id="meanings-today-title" class="kicker" data-i18n="meanings.today">Il tuo bouquet di oggi dice…</h2>
+        <ul id="meanings-today" class="meaning-list"></ul>
+      </section>
+      <section class="meanings-all" aria-labelledby="meanings-all-title">
+        <h2 id="meanings-all-title" class="kicker" data-i18n="meanings.all">Tutti i fiori</h2>
+        <div id="meanings-all" class="meaning-all-list"></div>
+      </section>
+      <p class="hint meanings-note" data-i18n="meanings.note"></p>
+    </main>
+
     <nav class="tabs" aria-label="Sezioni">
       <a href="#/oggi" data-tab="oggi" data-i18n="nav.today">Oggi</a>
+      <a href="#/fiori" data-tab="fiori" data-i18n="nav.flowers">Fiori</a>
       <a href="#/preferenze" data-tab="preferenze" data-i18n="nav.prefs">Preferenze</a>
     </nav>
   </div>
