@@ -1,6 +1,8 @@
 name = "daily-smile"
 main = "src/index.ts"
 compatibility_date = "2026-09-01"
+# Account identifier (not a credential): lets CI deploy with only the API token as a secret.
+account_id = "02a4c350badad3fae1cee187b3a0f738"
 workers_dev = true
 # Non-production branches built by Workers Builds get their own preview URL.
 preview_urls = true

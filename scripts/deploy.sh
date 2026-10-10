@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deploys Daily Smile to Cloudflare from CI. Usage: scripts/deploy.sh <git-branch>
-# Needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the environment, and `npm run build` done.
+# Needs CLOUDFLARE_API_TOKEN in the environment (account_id is in wrangler.toml), and `npm run build` done.
 #   main          -> production deploy (the live site)
 #   other branch  -> preview version with its own URL; production stays untouched
 # The very first run creates the Worker (a preview needs an existing Worker) and its VAPID keys.

@@ -20,9 +20,8 @@ Il job `deploy` in `.github/workflows/ci.yml` parte dopo che `npm run verify` è
 
 Configurazione una tantum, tutta dal browser (anche da telefono):
 1. Cloudflare → *My Profile → API Tokens → Create Token* → template **Edit Cloudflare Workers**, aggiungi il permesso **Account → D1 → Edit**, limita all'account; crea e copia il token.
-2. Cloudflare → home dell'account: copia l'**Account ID**.
-3. GitHub → repo → *Settings → Secrets and variables → Actions → New repository secret*: `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID`.
-4. Rilancia l'ultima esecuzione di *CI* (o fai un push): il riepilogo del job `deploy` mostra l'URL e il risultato dello smoke test (`scripts/smoke.sh`).
+2. GitHub → repo → *Settings → Secrets and variables → Actions → New repository secret*: `CLOUDFLARE_API_TOKEN` (l'Account ID è già in `worker/wrangler.toml`). Non condividere il token altrove.
+3. Rilancia l'ultima esecuzione di *CI* (o fai un push): il riepilogo del job `deploy` mostra l'URL e il risultato dello smoke test (`scripts/smoke.sh`).
 
 Il database D1 `daily-smile` esiste già (ID in `worker/wrangler.toml`). Le migrazioni in `worker/migrations/` sono solo additive e vengono applicate a ogni deploy.
 
