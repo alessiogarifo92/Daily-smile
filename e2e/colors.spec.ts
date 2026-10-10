@@ -61,6 +61,7 @@ const RUNS = [
   ['tulipano', 'realistico', '2D tulips'],
   ['margherita', 'realistico', '2D daisies'],
   ['girasole', 'realistico', '2D sunflowers'],
+  ['ranuncolo', 'realistico', '2D ranunculus'],
 ] as const;
 for (const [flower, style, kind] of RUNS) for (const c of FLOWER_COLORS) {
   test(`${kind} in ${c.label} look ${c.label}`, async ({ page }) => {
