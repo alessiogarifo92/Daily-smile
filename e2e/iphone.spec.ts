@@ -63,3 +63,13 @@ test('manifest makes the Home Screen app standalone', async ({ page }) => {
   expect(manifest.display).toBe('standalone');
   expect(manifest.start_url).toBe('/');
 });
+
+test('Home Screen app opens offline from its very first launch', async ({ page, context }) => {
+  // On iPhone the Home Screen app does not share Safari's storage, so its first launch is a first visit.
+  await page.goto('/');
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.locator('#message')).not.toBeEmpty({ timeout: 15_000 });
+  await context.setOffline(false);
+});
