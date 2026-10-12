@@ -31,7 +31,7 @@ export type Sender = (sub: StoredSubscription, payload: { title: string; body: s
 export const webPushSender: Sender = async (sub, payload, env) => {
   const vapid: VapidKeys = { subject: env.VAPID_SUBJECT, publicKey: env.VAPID_PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY };
   const req = await buildPushPayload(
-    { data: payload, options: { ttl: 6 * 60 * 60, urgency: 'normal', topic: 'daily-smile' } },
+    { data: payload, options: { ttl: 6 * 60 * 60, urgency: 'high', topic: 'daily-smile' } },
     { endpoint: sub.endpoint, expirationTime: null, keys: { p256dh: sub.p256dh, auth: sub.auth } },
     vapid,
   );

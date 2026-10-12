@@ -290,6 +290,8 @@ describe('webPushSender', () => {
       expect(headers.get('content-encoding')).toBe('aes128gcm');
       expect(headers.get('authorization')).toMatch(/^vapid t=[\w-]+\.[\w-]+\.[\w-]+, k=/);
       expect(headers.get('ttl')).toBe(String(6 * 60 * 60));
+      // High urgency: Android otherwise holds the push in Doze until the device wakes up.
+      expect(headers.get('urgency')).toBe('high');
     } finally {
       fetchSpy.mockRestore();
     }
