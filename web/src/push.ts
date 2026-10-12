@@ -9,12 +9,15 @@ export class PushError extends Error {
 
 export type PushSupport = 'supported' | 'needs-install' | 'unsupported';
 
-export function pushSupport(): PushSupport {
-  const nav = navigator as Navigator & { standalone?: boolean };
-  const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const standalone = window.matchMedia?.('(display-mode: standalone)').matches || nav.standalone === true;
+/**
+ * iPhone and iPad (iOS 16.4+) only offer Web Push to the app added to the Home Screen; in a Safari tab
+ * PushManager is missing, so we tell them to install instead of calling it unsupported.
+ */
+export function pushSupport(nav: Navigator & { standalone?: boolean } = navigator, win: Window = window): PushSupport {
+  const isIos = /iPad|iPhone|iPod/.test(nav.userAgent) || (nav.platform === 'MacIntel' && nav.maxTouchPoints > 1);
+  const standalone = win.matchMedia?.('(display-mode: standalone)').matches || nav.standalone === true;
   if (isIos && !standalone) return 'needs-install';
-  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return 'unsupported';
+  if (!('serviceWorker' in nav) || !('PushManager' in win) || !('Notification' in win)) return 'unsupported';
   return 'supported';
 }
 

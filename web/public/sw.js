@@ -1,9 +1,24 @@
 /* Daily Smile service worker: offline shell + daily push notification. */
 // Bump on every change to non-hashed files (icons, manifest, flower sprites) so old copies are dropped.
-const CACHE = 'daily-smile-v3';
+const CACHE = 'daily-smile-v4';
+
+/** Same-origin build assets (/assets/…) the shell page loads: script, stylesheet, preloads. */
+function shellAssets(html) {
+  return [...new Set(html.match(/\/assets\/[^"'\s?#]+/g) || [])];
+}
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/', '/manifest.webmanifest', '/icons/icon-192.png'])));
+  // The first visit loads the page before this worker controls it, so its hashed assets would never
+  // reach the cache and the app would open blank offline. On iPhone a Home Screen app has storage
+  // apart from Safari, so its first launch is always such a visit: cache the shell's assets now.
+  event.waitUntil(
+    caches.open(CACHE).then(async (c) => {
+      await c.addAll(['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/apple-touch-icon.png']);
+      const shell = await c.match('/');
+      const assets = shell ? shellAssets(await shell.text()) : [];
+      await c.addAll(assets);
+    }),
+  );
   self.skipWaiting();
 });
 
@@ -30,9 +45,10 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-  // Hashed build assets never change: cache first.
+  // Hashed build assets never change: cache first. ignoreVary: the server may send "Vary: Origin",
+  // and a crossorigin module script carries an Origin header the precached copy was stored without.
   event.respondWith(
-    caches.match(req).then(
+    caches.match(req, { ignoreVary: true }).then(
       (hit) =>
         hit ||
         fetch(req).then((res) => {
@@ -79,8 +95,11 @@ self.addEventListener('notificationclick', (event) => {
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
       for (const w of wins) {
         if ('focus' in w) {
-          w.navigate(target);
-          return w.focus();
+          // Focus first, while the click still counts as user activation. navigate() is missing on
+          // older Safari and rejects for a window this worker doesn't control: neither may stop the focus.
+          const focused = w.focus();
+          if (typeof w.navigate === 'function') w.navigate(target).catch(() => {});
+          return focused;
         }
       }
       return self.clients.openWindow(target);
