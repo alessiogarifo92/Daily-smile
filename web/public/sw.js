@@ -1,6 +1,6 @@
 /* Daily Smile service worker: offline shell + daily push notification. */
 // Bump on every change to non-hashed files (icons, manifest, flower sprites) so old copies are dropped.
-const CACHE = 'daily-smile-v3';
+const CACHE = 'daily-smile-v4';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/', '/manifest.webmanifest', '/icons/icon-192.png'])));
@@ -79,8 +79,11 @@ self.addEventListener('notificationclick', (event) => {
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
       for (const w of wins) {
         if ('focus' in w) {
-          w.navigate(target);
-          return w.focus();
+          // Focus first, while the click still counts as user activation. navigate() is missing on
+          // older Safari and rejects for a window this worker doesn't control: neither may stop the focus.
+          const focused = w.focus();
+          if (typeof w.navigate === 'function') w.navigate(target).catch(() => {});
+          return focused;
         }
       }
       return self.clients.openWindow(target);
