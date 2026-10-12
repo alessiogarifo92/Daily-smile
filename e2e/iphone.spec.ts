@@ -72,4 +72,8 @@ test('Home Screen app opens offline from its very first launch', async ({ page, 
   await page.reload();
   await expect(page.locator('#message')).not.toBeEmpty({ timeout: 15_000 });
   await context.setOffline(false);
+  // Flower sprites and the 3D module load on demand and were never fetched online: failing offline is
+  // expected. Only network failures are dropped; any other console error still fails the test.
+  const offline = /net::ERR_(FAILED|INTERNET_DISCONNECTED)|Failed to fetch dynamically imported module/;
+  for (let i = errors.length - 1; i >= 0; i--) if (offline.test(errors[i]!)) errors.splice(i, 1);
 });
