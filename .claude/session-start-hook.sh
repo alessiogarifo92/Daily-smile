@@ -10,6 +10,16 @@
 # is private (finite GitHub Actions minutes -> local `verify` is the push gate, see test-verification).
 # It never fails the session: every step is best effort and exits 0.
 set -u
+
+# 0. Project copy only: when the user-level entry (cloud setup script) is registered and has a clone
+#    to run, it already prints all of this; exit so the session gets one status line, not two.
+if [ "$(cd "$(dirname "$0")" && pwd)" = "${CLAUDE_PROJECT_DIR:-}/.claude" ] \
+   && grep -q 'templates/session-start-hook.sh' "$HOME/.claude/settings.json" 2>/dev/null; then
+  for f in /home/user/claude-skills "$HOME/claude-skills" "$HOME/.claude-skills-repo"; do
+    [ -f "$f/templates/session-start-hook.sh" ] && exit 0
+  done
+fi
+
 repo_url="${SKILLS_REPO_URL:-https://github.com/alessiogarifo92/claude-skills.git}"
 t() { timeout "${HOOK_TIMEOUT:-20}" "$@"; }
 
