@@ -95,7 +95,7 @@ body {
 .view { flex: 1; display: flex; flex-direction: column; padding-bottom: 96px; }
 .view[hidden] { display: none; }
 
-.top { padding-top: 28px; display: flex; flex-direction: column; gap: 6px; position: relative; z-index: 1; }
+.top { padding-top: 16px; display: flex; flex-direction: column; gap: 6px; position: relative; z-index: 1; }
 .brand { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; margin-left: -4px; }
 .brand-mark { display: block; }
 .brand-word { font-family: 'Caveat', cursive; font-weight: 700; font-size: 32px; line-height: 1; color: var(--ink); }
@@ -105,7 +105,8 @@ body {
 .date::first-letter { text-transform: uppercase; }
 
 .stage-wrap { position: relative; margin: 0 -16px; }
-.stage { position: relative; width: 100%; height: min(48vh, 420px); min-height: 300px; touch-action: pan-y; }
+/* svh: the height with the browser bars shown, so the whole card fits the first screen. */
+.stage { position: relative; width: 100%; height: min(37vh, 400px); height: min(37svh, 400px); min-height: 240px; touch-action: pan-y; }
 .stage canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
 .fallback { position: absolute; inset: 40% 24px auto; text-align: center; color: var(--muted); }
 
@@ -136,6 +137,16 @@ body {
   color: var(--sign); font-weight: 700; font-size: 15px; text-decoration: underline; text-underline-offset: 3px;
 }
 .meaning-link::after { content: ' →'; white-space: pre; }
+/* Until the daily notification is on: a perforated strip at the foot of the card. */
+.invite {
+  display: flex; align-items: center; gap: 8px; min-height: 44px; margin: -4px 0 -8px; padding-top: 6px;
+  border-top: 1.5px dashed color-mix(in srgb, var(--paper-ink) 22%, transparent);
+  color: var(--sign); font-weight: 700; font-size: 15px; text-decoration: none;
+}
+.invite[hidden] { display: none; }
+.invite svg { flex: none; }
+.invite span { text-decoration: underline; text-underline-offset: 3px; }
+.invite::after { content: '→'; margin-left: auto; font-size: 18px; }
 
 /* Language of flowers */
 .meanings-today, .meanings-all { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
@@ -164,8 +175,8 @@ body {
 .meaning-flower summary:focus-visible { outline: 2px solid var(--coral); outline-offset: 2px; border-radius: 8px; }
 .meanings-note { margin-top: 20px; }
 
+.next[hidden] { display: none; }
 .next { text-align: center; color: var(--muted); font-size: 15px; margin: 18px 0 0; }
-.next a { color: var(--ink); font-weight: 700; }
 
 .prefs-title { margin: 6px 0 0; font-family: 'Caveat', cursive; font-weight: 700; font-size: 44px; line-height: 1; }
 .prefs { display: flex; flex-direction: column; gap: 22px; margin-top: 20px; }

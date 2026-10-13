@@ -236,6 +236,10 @@ describe('i18n', () => {
     expect(isLang('en')).toBe(true);
     expect(isLang('fr')).toBe(false);
   });
+  it('invites to the daily notification at the chosen time', () => {
+    expect(t('it', 'card.invite', { t: '08:00' })).toBe('Ricevilo ogni giorno alle 08:00');
+    expect(t('en', 'card.invite', { t: '07:30' })).toBe('Get it every day at 07:30');
+  });
   it('fills placeholders and leaves unknown ones visible', () => {
     expect(t('en', 'next.today', { t: '07:30' })).toBe('Your new bouquet arrives today at 07:30');
     expect(t('it', 'next.tomorrow', { t: '08:00' })).toBe('Prossimo bouquet domani alle 08:00');
