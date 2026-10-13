@@ -1,3 +1,4 @@
+import { chroma, deltaE } from './color';
 import { joinList, type Lang } from './i18n';
 import { dayNumber } from './dates';
 import { createRng, hashString, pick, shuffle } from './random';
@@ -155,6 +156,34 @@ function gcd(a: number, b: number): number {
 /** Paper colours of the bouquet wrap (rendered as sprites by scripts/blender/wrap.py). */
 export const WRAPS = ['#F3E6D3', '#E9DCEF', '#DCE8E0', '#F5DCD3'];
 
+/** Smallest ΔE between the paper and every flower: below it cream flowers vanish into cream paper. */
+export const MIN_WRAP_DELTA = 20;
+/** Smallest ΔE between the ribbon and the paper. */
+export const MIN_RIBBON_DELTA = 30;
+
+/**
+ * A paper the flowers stand out from: a random one among those at least MIN_WRAP_DELTA from
+ * every flower colour, or the most distant one when none is.
+ */
+function pickWrap(rng: () => number, flowerColors: readonly string[]): string {
+  const gap = (wrap: string) => Math.min(...flowerColors.map((c) => deltaE(wrap, c)));
+  const clear = WRAPS.filter((w) => gap(w) >= MIN_WRAP_DELTA);
+  if (clear.length > 0) return pick(rng, clear);
+  return WRAPS.reduce((best, w) => (gap(w) > gap(best) ? w : best));
+}
+
+/**
+ * Ribbon: the first of today's colours that stands out from the paper; on a light day the
+ * most saturated chosen colour that does; coral, the accent of the design, when none does.
+ */
+function pickRibbon(wrap: string, dayPalette: readonly string[], palette: readonly string[]): string {
+  const standsOut = (hex: string) => deltaE(hex, wrap) >= MIN_RIBBON_DELTA;
+  const today = dayPalette.find(standsOut);
+  if (today) return today;
+  const chosen = [...palette].filter(standsOut).sort((a, b) => chroma(b) - chroma(a))[0];
+  return chosen ?? colorHex('corallo');
+}
+
 export interface BouquetPreferences {
   flowers: readonly FlowerType[];
   colors: readonly FlowerColor[];
@@ -214,11 +243,12 @@ export function composeBouquet(prefs: BouquetPreferences, dateKey: string): Bouq
     });
   }
 
+  const wrap = pickWrap(rng, [...new Set(stems.map((s) => s.color))]);
   return {
     dateKey,
     stems,
-    wrap: pick(rng, WRAPS),
-    ribbon: dayPalette[0] as string,
+    wrap,
+    ribbon: pickRibbon(wrap, dayPalette, palette),
     featured: kinds.map((k) => ({
       type: k,
       color: NATURAL_COLORS[k] ? null : (FLOWER_COLORS.find((c) => c.hex === kindColor.get(k))?.id ?? null),
