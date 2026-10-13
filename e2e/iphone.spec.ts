@@ -2,7 +2,9 @@ import { devices, expect, test } from '@playwright/test';
 
 // iPhone viewport, touch and Safari user agent. The engine is still Chromium (no WebKit in CI),
 // so this covers layout and the iOS-specific branches of our code, not Safari's rendering itself.
-const { defaultBrowserType: _engine, ...iPhone } = devices['iPhone 13'];
+const { defaultBrowserType: _engine, ...iPhone13 } = devices['iPhone 13'];
+// Playwright's profile ships an old iOS user agent; Web Push needs 16.4, so run the main tests on iOS 18.
+const iPhone = { ...iPhone13, userAgent: iPhone13.userAgent.replace(/OS \d+_\d+(_\d+)?/, 'OS 18_0').replace(/Version\/[\d.]+/, 'Version/18.0') };
 test.use({ ...iPhone, timezoneId: 'Europe/Rome', locale: 'it-IT' });
 
 const errors: string[] = [];
@@ -76,4 +78,13 @@ test('Home Screen app opens offline from its very first launch', async ({ page, 
   // expected. Only network failures are dropped; any other console error still fails the test.
   const offline = /net::ERR_(FAILED|INTERNET_DISCONNECTED)|Failed to fetch dynamically imported module/;
   for (let i = errors.length - 1; i >= 0; i--) if (offline.test(errors[i]!)) errors.splice(i, 1);
+});
+
+test.describe('iPhone on iOS 15', () => {
+  test.use({ userAgent: iPhone.userAgent.replace(/OS \d+_\d+/, 'OS 15_8') });
+  test('notifications explain that iOS must be updated', async ({ page }) => {
+    await page.goto('/#/preferenze');
+    await expect(page.locator('#push-hint')).toContainText('iOS 16.4');
+    await expect(page.locator('#notifications')).toBeDisabled();
+  });
 });
