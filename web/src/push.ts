@@ -7,7 +7,19 @@ export class PushError extends Error {
   }
 }
 
-export type PushSupport = 'supported' | 'needs-install' | 'unsupported';
+export type PushSupport = 'supported' | 'needs-install' | 'ios-too-old' | 'unsupported';
+
+/** Apple added Web Push for Home Screen apps in iOS / iPadOS 16.4. */
+const IOS_PUSH_MIN = [16, 4] as const;
+
+/**
+ * iOS version from the user agent: "iPhone OS 16_3" on iPhone, or Safari's "Version/16.3" on an iPad that
+ * reports a desktop user agent (Safari ships with the OS, so the two match). Null when neither is present.
+ */
+export function iosVersion(ua: string): [number, number] | null {
+  const m = /OS (\d+)_(\d+)/.exec(ua) ?? /Version\/(\d+)\.(\d+)/.exec(ua);
+  return m ? [Number(m[1]), Number(m[2])] : null;
+}
 
 /**
  * iPhone and iPad (iOS 16.4+) only offer Web Push to the app added to the Home Screen; in a Safari tab
@@ -16,7 +28,12 @@ export type PushSupport = 'supported' | 'needs-install' | 'unsupported';
 export function pushSupport(nav: Navigator & { standalone?: boolean } = navigator, win: Window = window): PushSupport {
   const isIos = /iPad|iPhone|iPod/.test(nav.userAgent) || (nav.platform === 'MacIntel' && nav.maxTouchPoints > 1);
   const standalone = win.matchMedia?.('(display-mode: standalone)').matches || nav.standalone === true;
-  if (isIos && !standalone) return 'needs-install';
+  if (isIos) {
+    const v = iosVersion(nav.userAgent);
+    // Older than 16.4: adding to the Home Screen would not help, the phone needs an update.
+    if (v && (v[0] < IOS_PUSH_MIN[0] || (v[0] === IOS_PUSH_MIN[0] && v[1] < IOS_PUSH_MIN[1]))) return 'ios-too-old';
+    if (!standalone) return 'needs-install';
+  }
   if (!('serviceWorker' in nav) || !('PushManager' in win) || !('Notification' in win)) return 'unsupported';
   return 'supported';
 }

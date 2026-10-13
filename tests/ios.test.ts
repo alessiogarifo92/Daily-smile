@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
-import { pushSupport } from '../web/src/push';
+import { iosVersion, pushSupport } from '../web/src/push';
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const IPAD_DESKTOP_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15';
@@ -48,6 +48,40 @@ describe('pushSupport on iPhone and iPad', () => {
     const [nav, win] = env({ ua: ANDROID, platform: 'Linux' });
     delete (win as unknown as Record<string, unknown>).matchMedia;
     expect(pushSupport(nav, win)).toBe('supported');
+  });
+});
+
+const iphoneOn = (v: string) => IPHONE.replace('18_0', v);
+
+describe('iOS version gate (Web Push needs iOS 16.4)', () => {
+  it('reads the version from iPhone, Chrome-on-iPhone and desktop-mode iPad user agents', () => {
+    expect(iosVersion(iphoneOn('16_3'))).toEqual([16, 3]);
+    expect(iosVersion('Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/130.0 Mobile/15E148 Safari/604.1')).toEqual([17, 5]);
+    // "Mac OS X 10_15_7" must not be read as iOS 10.15: the iPad's Safari version is used instead.
+    expect(iosVersion(IPAD_DESKTOP_UA)).toEqual([18, 0]);
+    expect(iosVersion(ANDROID)).toBeNull();
+    expect(iosVersion('')).toBeNull();
+  });
+
+  it('tells iOS 16.3 and older to update, in a Safari tab or installed', () => {
+    expect(pushSupport(...env({ ua: iphoneOn('16_3'), standalone: false, push: false }))).toBe('ios-too-old');
+    expect(pushSupport(...env({ ua: iphoneOn('15_8'), standalone: true, push: false }))).toBe('ios-too-old');
+    expect(pushSupport(...env({ ua: iphoneOn('9_3'), push: false }))).toBe('ios-too-old');
+  });
+
+  it('accepts exactly 16.4 and anything newer', () => {
+    expect(pushSupport(...env({ ua: iphoneOn('16_4'), standalone: false, push: false }))).toBe('needs-install');
+    expect(pushSupport(...env({ ua: iphoneOn('16_4'), standalone: true }))).toBe('supported');
+    expect(pushSupport(...env({ ua: iphoneOn('17_0'), standalone: true }))).toBe('supported');
+  });
+
+  it('gates a desktop-mode iPad on its Safari version', () => {
+    const oldIpad = IPAD_DESKTOP_UA.replace('Version/18.0', 'Version/16.2');
+    expect(pushSupport(...env({ ua: oldIpad, platform: 'MacIntel', touch: 5, push: false }))).toBe('ios-too-old');
+  });
+
+  it('never applies the iOS gate to Android', () => {
+    expect(pushSupport(...env({ ua: ANDROID, platform: 'Linux armv8l' }))).toBe('supported');
   });
 });
 

@@ -322,6 +322,7 @@ function pushHint(): void {
   const hint = $('push-hint');
   hint.hidden = support === 'supported';
   if (support === 'needs-install') hint.textContent = t(lang, 'hint.ios');
+  else if (support === 'ios-too-old') hint.textContent = t(lang, 'hint.iosOld');
   else if (support === 'unsupported') hint.textContent = t(lang, 'hint.unsupported');
 }
 
