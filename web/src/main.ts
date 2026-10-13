@@ -120,19 +120,18 @@ function currentTab(): Tab {
 }
 
 function renderNext(): void {
-  const el = $('next');
-  el.textContent = '';
+  // Notification off: the invite sits inside the card, where it is seen without scrolling.
+  const next = $('next');
+  $('invite').hidden = prefs.notifications;
+  next.hidden = !prefs.notifications;
   if (prefs.notifications) {
     const now = localParts(Date.now(), timeZone);
     const time = parseTime(prefs.time);
     const later = time !== null && now.hour * 60 + now.minute < time.hour * 60 + time.minute;
-    el.textContent = t(lang, later ? 'next.today' : 'next.tomorrow', { t: prefs.time });
+    next.textContent = t(lang, later ? 'next.today' : 'next.tomorrow', { t: prefs.time });
   } else {
-    el.append(t(lang, 'next.ask'));
-    const a = document.createElement('a');
-    a.href = '#/preferenze';
-    a.textContent = t(lang, 'next.enable');
-    el.append(a);
+    next.textContent = '';
+    $('invite-text').textContent = t(lang, 'card.invite', { t: prefs.time });
   }
 }
 
