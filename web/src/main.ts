@@ -4,7 +4,7 @@ import { FLOWER_COLORS, FLOWER_TYPES, colorHex, colorLabel, composeBouquet, desc
 import { resolveLang, t, type Lang, type LangSetting, type MessageKey } from '../../shared/i18n';
 import { colorMeaning, flowerMeaning, meaningColors, todayMeanings } from '../../shared/meanings';
 import { messageFor } from '../../shared/messages';
-import { formatTime, giftDayKey, parseTime } from '../../shared/schedule';
+import { formatTime, parseTime } from '../../shared/schedule';
 import { greetingForHour, isDark, resolvePhase, type ThemeMode } from '../../shared/theme';
 import { createBouquet2DView } from './bouquet2d';
 import { canDrawSprites } from './sprites';
@@ -33,9 +33,9 @@ let shownKey = '';
 /** Preferences changed while the Today tab was hidden: redraw it when it comes back. */
 let todayStale = false;
 
-/** The day whose gift is on display: it changes at the notification time when one is set. */
+/** The day whose gift is on display: it changes at local midnight; the notification only reminds. */
 function todayKey(): string {
-  return giftDayKey(Date.now(), timeZone, prefs.notifications ? parseTime(prefs.time) : null);
+  return dateKey(Date.now(), timeZone);
 }
 
 /** Static texts marked in the HTML with data-i18n / data-i18n-aria. */
@@ -67,16 +67,14 @@ function applyTheme(mode: ThemeMode): void {
 }
 
 function renderToday(force = false): void {
-  // The header always shows the real date; the card shows whose gift is on display.
-  const realToday = dateKey(Date.now(), timeZone);
-  $('today').textContent = formatDate(realToday, lang);
-  renderNext();
   const key = todayKey();
+  $('today').textContent = formatDate(key, lang);
+  renderNext();
   if (!force && key === shownKey) return;
   shownKey = key;
   const bouquet = composeBouquet(prefs, key);
   const description = describeBouquet(bouquet, lang);
-  $('card-for').textContent = t(lang, key === realToday ? 'card.for' : 'card.yesterday');
+  $('card-for').textContent = t(lang, 'card.for');
   $('card-date').textContent = formatDate(key, lang);
   $('message').textContent = messageFor(key, lang);
   $('bouquet-desc').textContent = t(lang, 'bouquet.today', { d: description });
@@ -125,10 +123,7 @@ function renderNext(): void {
   $('invite').hidden = prefs.notifications;
   next.hidden = !prefs.notifications;
   if (prefs.notifications) {
-    const now = localParts(Date.now(), timeZone);
-    const time = parseTime(prefs.time);
-    const later = time !== null && now.hour * 60 + now.minute < time.hour * 60 + time.minute;
-    next.textContent = t(lang, later ? 'next.today' : 'next.tomorrow', { t: prefs.time });
+    next.textContent = t(lang, 'next.reminder', { t: prefs.time });
   } else {
     next.textContent = '';
     $('invite-text').textContent = t(lang, 'card.invite', { t: prefs.time });
