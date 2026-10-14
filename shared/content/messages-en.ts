@@ -43,7 +43,7 @@ export const ORIGINALS_EN: readonly string[] = [
   'Treat yourself today with the same tenderness you give the people you love.',
   'You don’t have to do it all today. Do what you can, and that’s plenty.',
   'Rest isn’t wasted time. It’s how you recharge your light.',
-  'If today moves slowly, that’s okay. Snails get there too.',
+  'Today’s tiny mission: make someone laugh. Bonus points if it’s you.',
   'Forgive yourself for yesterday. Today is a fresh page.',
   'Your heart deserves the same care you give your houseplants.',
   'You’re allowed to stop, breathe, and start again whenever you like.',
@@ -528,7 +528,7 @@ export const ORIGINALS_EN: readonly string[] = [
   'Smile today, smile tomorrow, and again after that. It’s called a happy habit.',
   'Every bouquet is a little piece of spring arriving at your door.',
   // A few more
-  'Somebody out there is grateful you were born. Today, be one of them.',
+  'Breaking news: a wonderful human is reading this right now. Yes, you.',
   'Your kindness ripples further than you’ll ever see.',
   'You make ordinary days feel a little more like holidays.',
   'Be soft with your heart today. It’s been working hard.',
