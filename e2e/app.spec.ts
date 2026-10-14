@@ -230,19 +230,19 @@ test.describe('on an English phone', () => {
   });
 });
 
-test('before the notification time: today’s date on top, yesterday’s gift labelled, arrival time shown', async ({ page }) => {
+test('the gift changes at midnight, also before the notification time', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('daily-smile:prefs:v1', JSON.stringify({ notifications: true, time: '18:30' }));
   });
   await openAt(page, '2026-10-10T15:40:00+02:00');
   await expect(page.locator('#today')).toHaveText('sabato 10 ottobre');
-  await expect(page.locator('#card-title')).toHaveText('Il regalo di ieri · venerdì 9 ottobre');
-  await expect(page.locator('#next')).toHaveText('Il nuovo bouquet arriva oggi alle 18:30');
-  await expect(page.getByRole('img', { name: 'Daily Smile' })).toBeVisible();
-
-  // At the notification time the new gift takes over (the app checks every minute).
-  await page.clock.setFixedTime(new Date('2026-10-10T18:31:00+02:00'));
-  await page.reload();
   await expect(page.locator('#card-title')).toHaveText('Per te · sabato 10 ottobre');
-  await expect(page.locator('#next')).toHaveText('Prossimo bouquet domani alle 18:30');
+  await expect(page.locator('#next')).toHaveText('Promemoria ogni giorno alle 18:30');
+  const before = await page.locator('#message').textContent();
+
+  // Just after midnight the new day's gift is on display, hours before the notification.
+  await page.clock.setFixedTime(new Date('2026-10-11T00:01:00+02:00'));
+  await page.reload();
+  await expect(page.locator('#card-title')).toHaveText('Per te · domenica 11 ottobre');
+  await expect(page.locator('#message')).not.toHaveText(before ?? '');
 });

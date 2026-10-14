@@ -33,9 +33,9 @@ test('first screen: signature, share and the notification invite are above the t
   await expect(page.locator('#view-preferenze')).toBeVisible();
 });
 
-test('with the notification on there is no invite, only the next bouquet line', async ({ page }) => {
+test('with the notification on there is no invite, only the reminder line', async ({ page }) => {
   await open(page, { notifications: true, time: '18:30' });
   await expect(page.locator('#invite')).toBeHidden();
-  await expect(page.locator('#next')).toHaveText('Il nuovo bouquet arriva oggi alle 18:30');
+  await expect(page.locator('#next')).toHaveText('Promemoria ogni giorno alle 18:30');
   await aboveTabs(page, page.locator('#share'));
 });

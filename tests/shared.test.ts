@@ -7,7 +7,7 @@ import { MESSAGES, MESSAGES_EN, messageFor } from '../shared/messages';
 import { QUOTES_EN } from '../shared/content/messages-en';
 import { QUOTES_IT } from '../shared/content/messages-it';
 import { createRng, hashString, pick, shuffle } from '../shared/random';
-import { formatTime, giftDayKey, nextSendAt, parseTime, zonedToUtc } from '../shared/schedule';
+import { formatTime, nextSendAt, parseTime, zonedToUtc } from '../shared/schedule';
 import { greetingFor, greetingForHour, isDark, phaseForHour, resolvePhase } from '../shared/theme';
 
 describe('random', () => {
@@ -241,8 +241,8 @@ describe('i18n', () => {
     expect(t('en', 'card.invite', { t: '07:30' })).toBe('Get it every day at 07:30');
   });
   it('fills placeholders and leaves unknown ones visible', () => {
-    expect(t('en', 'next.today', { t: '07:30' })).toBe('Your new bouquet arrives today at 07:30');
-    expect(t('it', 'next.tomorrow', { t: '08:00' })).toBe('Prossimo bouquet domani alle 08:00');
+    expect(t('en', 'next.reminder', { t: '07:30' })).toBe('Reminder every day at 07:30');
+    expect(t('it', 'next.reminder', { t: '08:00' })).toBe('Promemoria ogni giorno alle 08:00');
     expect(t('en', 'stage.aria')).toBe('3D bouquet of {d}');
   });
   it('joins lists in each language', () => {
@@ -342,23 +342,18 @@ describe('daily bouquet styles', () => {
   });
 });
 
-describe('gift day', () => {
+describe('day of the gift', () => {
   const rome = 'Europe/Rome';
   const at = (h: number, m: number, day = 10) => Date.UTC(2026, 9, day, h - 2, m); // CEST
-  it('changes at midnight without a notification', () => {
-    expect(giftDayKey(at(0, 5), rome, null)).toBe('2026-10-10');
-    expect(giftDayKey(at(23, 59), rome, null)).toBe('2026-10-10');
+  it('changes at local midnight, whatever the notification time', () => {
+    expect(dateKey(at(0, 0), rome)).toBe('2026-10-10');
+    expect(dateKey(at(23, 59), rome)).toBe('2026-10-10');
+    expect(dateKey(at(23, 59, 9) + 60_000, rome)).toBe('2026-10-10');
+    expect(dateKey(at(23, 59, 9), rome)).toBe('2026-10-09');
   });
-  it('changes at the notification time when one is set', () => {
-    const t = { hour: 8, minute: 30 };
-    expect(giftDayKey(at(8, 29), rome, t)).toBe('2026-10-09');
-    expect(giftDayKey(at(8, 30), rome, t)).toBe('2026-10-10');
-    expect(giftDayKey(at(22, 0), rome, t)).toBe('2026-10-10');
-  });
-  it('handles month boundaries and late-night times', () => {
-    expect(giftDayKey(Date.UTC(2026, 10, 1, 5, 0), rome, { hour: 9, minute: 0 })).toBe('2026-10-31');
-    expect(giftDayKey(at(23, 58), rome, { hour: 23, minute: 59 })).toBe('2026-10-09');
-    expect(giftDayKey(at(23, 59), rome, { hour: 23, minute: 59 })).toBe('2026-10-10');
+  it('follows the local midnight across month boundaries and time zones', () => {
+    expect(dateKey(Date.UTC(2026, 9, 31, 23, 30), rome)).toBe('2026-11-01'); // 00:30 CET
+    expect(dateKey(Date.UTC(2026, 9, 31, 23, 30), 'America/New_York')).toBe('2026-10-31');
   });
 });
 
